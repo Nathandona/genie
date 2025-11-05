@@ -1,6 +1,6 @@
 import type { FastifyInstance } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 import { enqueueProjectPipeline } from '../services/pipeline-queue.js';
 import { serializeProject } from '../utils/serializers.js';
@@ -8,10 +8,10 @@ import { serializeProject } from '../utils/serializers.js';
 const createProjectSchema = z.object({
   sourceUrl: z.string().url(),
   settings: z.object({
-    maxPages: z.number().int().min(1).max(500).default(10),
+    maxPages: z.number().int().min(1).max(500),
     includePatterns: z.array(z.string()).optional(),
     excludePatterns: z.array(z.string()).optional()
-  }).optional()
+  }).optional().default({ maxPages: 10 })
 });
 
 const projectIdParamsSchema = z.object({ id: z.string().uuid() });
@@ -33,12 +33,19 @@ export default async function projectRoutes(app: FastifyInstance) {
     const userId = request.user.sub;
     const payload = createProjectSchema.parse(request.body);
 
+    // Ensure maxPages has a value
+    const settings = {
+      maxPages: payload.settings?.maxPages ?? 10,
+      includePatterns: payload.settings?.includePatterns,
+      excludePatterns: payload.settings?.excludePatterns,
+    };
+
     // store project
     const project = await server.db.project.create({
       data: {
         userId,
         sourceUrl: payload.sourceUrl,
-        settings: payload.settings ?? {}
+        settings: settings
       }
     });
 
@@ -56,7 +63,7 @@ export default async function projectRoutes(app: FastifyInstance) {
       projectId: project.id,
       userId,
       sourceUrl: payload.sourceUrl,
-      settings: payload.settings ?? { maxPages: 10 }
+      settings: settings
     });
 
     return reply.status(201).send(serializeProject(project));

@@ -3,7 +3,6 @@
 import { useState, useEffect } from "react"
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Progress } from "@/components/ui/progress"
-import { Badge } from "@/components/ui/badge"
 import { Button } from "@/components/ui/button"
 import { 
   Globe, 
@@ -18,6 +17,7 @@ import {
   Layout
 } from "lucide-react"
 import { useSearchParams, useRouter } from "next/navigation"
+import { apiClient } from "@/lib/api-client"
 
 interface Phase {
   id: number
@@ -36,8 +36,9 @@ interface ActivityLog {
 export default function ProgressPage() {
   const searchParams = useSearchParams()
   const router = useRouter()
+  const projectId = searchParams.get("id")
   const url = searchParams.get("url") || ""
-  const maxPages = searchParams.get("maxPages") || "10"
+  const maxPages = parseInt(searchParams.get("maxPages") || "10")
 
   const [currentPhase, setCurrentPhase] = useState(0)
   const [progress, setProgress] = useState(0)
@@ -49,7 +50,8 @@ export default function ProgressPage() {
   const [activityLog, setActivityLog] = useState<ActivityLog[]>([])
   const [isComplete, setIsComplete] = useState(false)
   const [isCancelled, setIsCancelled] = useState(false)
-  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState(parseInt(maxPages) * 0.5)
+  const [estimatedTimeRemaining, setEstimatedTimeRemaining] = useState(maxPages * 0.5)
+  const [projectStatus, setProjectStatus] = useState<string>("")
 
   const phases: Phase[] = [
     { id: 0, name: "Crawling", icon: Globe, status: currentPhase === 0 ? "active" : currentPhase > 0 ? "completed" : "pending" },
@@ -58,103 +60,97 @@ export default function ProgressPage() {
     { id: 3, name: "Building", icon: Rocket, status: currentPhase === 3 ? "active" : currentPhase > 3 ? "completed" : "pending" },
   ]
 
+  // Poll for project status
   useEffect(() => {
-    if (isCancelled || isComplete) return
+    if (!projectId || isCancelled || isComplete) return
 
-    // Simulate progress
-    const progressInterval = setInterval(() => {
-      setProgress((prev) => {
-        if (prev >= 100) {
-          if (currentPhase < 3) {
-            setCurrentPhase((p) => p + 1)
-            return 0
-          } else {
-            setIsComplete(true)
-            clearInterval(progressInterval)
-            // Redirect to results page
-            setTimeout(() => {
-              router.push(`/results?url=${encodeURIComponent(url)}`)
-            }, 2000)
-            return 100
-          }
+    async function pollStatus() {
+      try {
+        const result = await apiClient.getProjectStatus(projectId!)
+        const { project, stats: newStats } = result
+        
+        setProjectStatus(project.status)
+        setStats(newStats)
+
+        // Map project status to phase
+        const statusToPhase: Record<string, number> = {
+          'queued': 0,
+          'crawling': 0,
+          'analyzing': 1,
+          'generating': 2,
+          'completed': 3,
+          'failed': 3,
         }
-        return prev + 1
-      })
-    }, 100)
 
-    return () => clearInterval(progressInterval)
-  }, [currentPhase, isCancelled, isComplete, url, router])
+        const phaseFromStatus = statusToPhase[project.status] ?? 0
+        setCurrentPhase(phaseFromStatus)
 
-  useEffect(() => {
-    if (isCancelled || isComplete) return
+        // Calculate progress within phase
+        if (project.status === 'crawling' && project.pageCount > 0) {
+          const crawlProgress = Math.min((project.pageCount / maxPages) * 100, 100)
+          setProgress(crawlProgress)
+        } else if (project.status === 'completed') {
+          setProgress(100)
+          setIsComplete(true)
+          setEstimatedTimeRemaining(0)
+          
+          // Redirect to results page
+          setTimeout(() => {
+            router.push(`/results?id=${projectId}`)
+          }, 2000)
+        } else if (project.status === 'failed') {
+          addActivityLog('Generation failed. Please try again.', 'warning')
+          setIsCancelled(true)
+        }
 
-    // Simulate stats updates
-    const statsInterval = setInterval(() => {
-      setStats((prev) => ({
-        pagesDiscovered: Math.min(prev.pagesDiscovered + Math.floor(Math.random() * 3), parseInt(maxPages)),
-        componentsCreated: prev.componentsCreated + Math.floor(Math.random() * 5),
-        assetsOptimized: prev.assetsOptimized + Math.floor(Math.random() * 7),
-      }))
+        // Update estimated time
+        if (project.generationTime) {
+          setEstimatedTimeRemaining(0)
+        } else {
+          setEstimatedTimeRemaining(prev => Math.max(0, prev - 0.5))
+        }
 
-      setEstimatedTimeRemaining((prev) => Math.max(0, prev - 0.1))
-    }, 2000)
-
-    return () => clearInterval(statsInterval)
-  }, [isCancelled, isComplete, maxPages])
-
-  useEffect(() => {
-    if (isCancelled || isComplete) return
-
-    // Simulate activity log
-    const logMessages = [
-      { phase: 0, messages: [
-        "Discovered homepage",
-        "Found 5 navigation links",
-        "Crawling /about page",
-        "Crawling /services page",
-        "Detected responsive design",
-      ]},
-      { phase: 1, messages: [
-        "Extracting color palette",
-        "Analyzing typography",
-        "Identifying component patterns",
-        "Parsing CSS structure",
-        "Detecting layout system",
-      ]},
-      { phase: 2, messages: [
-        "Generating React components",
-        "Creating page templates",
-        "Optimizing images",
-        "Setting up routing",
-        "Generating TypeScript types",
-      ]},
-      { phase: 3, messages: [
-        "Installing dependencies",
-        "Configuring Next.js",
-        "Running build process",
-        "Optimizing bundle",
-        "Finalizing project",
-      ]},
-    ]
-
-    const logInterval = setInterval(() => {
-      const phaseMessages = logMessages[currentPhase]?.messages
-      if (phaseMessages && phaseMessages.length > 0) {
-        const randomMessage = phaseMessages[Math.floor(Math.random() * phaseMessages.length)]
-        setActivityLog((prev) => [
-          {
-            id: Date.now(),
-            message: randomMessage,
-            timestamp: new Date(),
-            type: Math.random() > 0.8 ? "success" : "info",
-          },
-          ...prev.slice(0, 9), // Keep last 10 items
-        ])
+      } catch (err) {
+        console.error('Failed to poll status:', err)
+        addActivityLog('Error fetching project status', 'warning')
       }
-    }, 3000)
+    }
 
-    return () => clearInterval(logInterval)
-  }, [currentPhase, isCancelled, isComplete])
+    pollStatus()
+    const interval = setInterval(pollStatus, 2000) // Poll every 2 seconds
+    return () => clearInterval(interval)
+  }, [projectId, isCancelled, isComplete, maxPages, router])
+
+  const addActivityLog = (message: string, type: 'success' | 'info' | 'warning' = 'info') => {
+    setActivityLog((prev) => [
+      {
+        id: Date.now(),
+        message,
+        timestamp: new Date(),
+        type,
+      },
+      ...prev.slice(0, 9), // Keep last 10 items
+    ])
+  }
+
+  useEffect(() => {
+    if (isCancelled || isComplete) return
+
+    // Add activity logs based on status
+    const statusMessages: Record<string, string[]> = {
+      'queued': ['Project queued for processing', 'Initializing crawler'],
+      'crawling': ['Discovering pages', 'Extracting content', 'Following links'],
+      'analyzing': ['Extracting design tokens', 'Analyzing component patterns', 'Processing styles'],
+      'generating': ['Creating React components', 'Generating page templates', 'Optimizing assets'],
+      'completed': ['Project generated successfully!'],
+    }
+
+    const messages = statusMessages[projectStatus]
+    if (messages && messages.length > 0) {
+      const randomMessage = messages[Math.floor(Math.random() * messages.length)]
+      addActivityLog(randomMessage, 'info')
+    }
+  }, [projectStatus, stats.pagesDiscovered]) // Trigger on status or page discovery changes
 
   const handleCancel = () => {
     if (confirm("Are you sure you want to cancel this generation?")) {

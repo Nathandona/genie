@@ -1,7 +1,7 @@
 import argon2 from 'argon2';
 import type { FastifyInstance } from 'fastify';
 import { ZodTypeProvider } from 'fastify-type-provider-zod';
-import { z } from 'zod';
+import { z } from 'zod/v4';
 
 import { serializeUser } from '../utils/serializers.js';
 import { getUsagePeriod } from '../utils/date.js';

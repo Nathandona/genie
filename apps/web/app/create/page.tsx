@@ -5,16 +5,21 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Badge } from "@/components/ui/badge"
-import { ChevronDown, ChevronUp, Globe, Sparkles, Clock, Zap } from "lucide-react"
+import { ChevronDown, ChevronUp, Globe, Sparkles, Clock, Zap, Loader2 } from "lucide-react"
 import Link from "next/link"
+import { useRouter } from "next/navigation"
+import { apiClient } from "@/lib/api-client"
 
 export default function CreateProject() {
+  const router = useRouter()
   const [url, setUrl] = useState("")
   const [showAdvanced, setShowAdvanced] = useState(false)
   const [maxPages, setMaxPages] = useState("10")
   const [includePatterns, setIncludePatterns] = useState("")
   const [excludePatterns, setExcludePatterns] = useState("")
   const [isValidUrl, setIsValidUrl] = useState(true)
+  const [isSubmitting, setIsSubmitting] = useState(false)
+  const [error, setError] = useState<string | null>(null)
 
   const validateUrl = (value: string) => {
     if (!value) {
@@ -33,15 +38,46 @@ export default function CreateProject() {
     const value = e.target.value
     setUrl(value)
     validateUrl(value)
+    setError(null)
   }
 
   const estimatedTime = Math.ceil(parseInt(maxPages || "10") * 0.5)
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (url && isValidUrl) {
-      // Navigate to progress page with URL params
-      window.location.href = `/progress?url=${encodeURIComponent(url)}&maxPages=${maxPages}`
+    if (!url || !isValidUrl) return
+
+    try {
+      setIsSubmitting(true)
+      setError(null)
+
+      // Parse patterns
+      const includePatternsArray = includePatterns
+        .split(',')
+        .map(p => p.trim())
+        .filter(Boolean)
+      
+      const excludePatternsArray = excludePatterns
+        .split(',')
+        .map(p => p.trim())
+        .filter(Boolean)
+
+      // Create project via API
+      const project = await apiClient.createProject({
+        sourceUrl: url,
+        settings: {
+          maxPages: parseInt(maxPages),
+          ...(includePatternsArray.length > 0 && { includePatterns: includePatternsArray }),
+          ...(excludePatternsArray.length > 0 && { excludePatterns: excludePatternsArray }),
+        },
+      })
+
+      // Navigate to progress page with project ID
+      router.push(`/progress?id=${project.id}&url=${encodeURIComponent(url)}&maxPages=${maxPages}`)
+    } catch (err) {
+      console.error('Failed to create project:', err)
+      setError(err instanceof Error ? err.message : 'Failed to create project. Please try again.')
+      setIsSubmitting(false)
     }
   }
 
@@ -84,6 +120,7 @@ export default function CreateProject() {
                     placeholder="https://example.com"
                     value={url}
                     onChange={handleUrlChange}
+                    disabled={isSubmitting}
                     className={`h-14 text-lg ${
                       !isValidUrl ? "border-destructive" : ""
                     }`}
@@ -91,6 +128,11 @@ export default function CreateProject() {
                   {!isValidUrl && (
                     <p className="text-sm text-destructive">
                       Please enter a valid URL (including https://)
+                    </p>
+                  )}
+                  {error && (
+                    <p className="text-sm text-destructive">
+                      {error}
                     </p>
                   )}
                   <p className="text-sm text-muted-foreground">
@@ -187,10 +229,19 @@ export default function CreateProject() {
                   type="submit"
                   size="lg"
                   className="w-full h-14 text-lg"
-                  disabled={!url || !isValidUrl}
+                  disabled={!url || !isValidUrl || isSubmitting}
                 >
-                  <Sparkles className="mr-2 h-5 w-5" />
-                  Start Generation
+                  {isSubmitting ? (
+                    <>
+                      <Loader2 className="mr-2 h-5 w-5 animate-spin" />
+                      Creating Project...
+                    </>
+                  ) : (
+                    <>
+                      <Sparkles className="mr-2 h-5 w-5" />
+                      Start Generation
+                    </>
+                  )}
                 </Button>
               </form>
             </CardContent>
