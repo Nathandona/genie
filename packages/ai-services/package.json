@@ -1,0 +1,30 @@
+{
+  "name": "@frontgenie/ai-services",
+  "version": "0.1.0",
+  "type": "module",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    }
+  },
+  "files": ["dist"],
+  "scripts": {
+    "build": "tsup src/index.ts --format esm,cjs --dts",
+    "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
+    "lint": "eslint src --ext .ts"
+  },
+  "dependencies": {
+    "@frontgenie/shared": "workspace:^0.1.0",
+  "@anthropic-ai/sdk": "^0.20.0",
+    "openai": "^4.52.0",
+    "zod": "^3.23.8"
+  },
+  "devDependencies": {
+    "eslint": "^9.9.0",
+    "tsup": "^8.1.0",
+    "typescript": "^5.5.4"
+  }
+}

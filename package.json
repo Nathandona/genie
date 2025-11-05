@@ -1,0 +1,24 @@
+{
+  "name": "frontgenie",
+  "private": true,
+  "packageManager": "pnpm@9.8.0",
+  "engines": {
+    "node": ">=20.10.0",
+    "pnpm": ">=9.0.0"
+  },
+  "scripts": {
+    "dev": "turbo dev",
+    "build": "turbo build",
+    "lint": "turbo lint",
+    "test": "turbo test"
+  },
+  "devDependencies": {
+    "@types/node": "^20.14.9",
+    "@typescript-eslint/eslint-plugin": "^8.5.0",
+    "@typescript-eslint/parser": "^8.5.0",
+    "eslint": "^9.9.0",
+    "prettier": "^3.3.3",
+    "turbo": "^2.0.4",
+    "typescript": "^5.5.4"
+  }
+}
