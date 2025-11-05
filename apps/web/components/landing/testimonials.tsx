@@ -9,7 +9,7 @@ const testimonials = [
     name: "Sarah Chen",
     role: "CTO, TechStart Inc",
     avatar: "SC",
-    content: "FrontGenie saved us 6 weeks of development time. We converted our legacy PHP site to Next.js in just 2 hours. Absolutely game-changing!",
+    content: "Genie saved us 6 weeks of development time. We converted our legacy PHP site to Next.js in just 2 hours. Absolutely game-changing!",
     rating: 5,
   },
   {
@@ -30,14 +30,14 @@ const testimonials = [
     name: "David Kim",
     role: "Agency Owner",
     avatar: "DK",
-    content: "We've used FrontGenie for 5 client projects now. It's become an essential part of our workflow. ROI is through the roof.",
+    content: "We've used Genie for 5 client projects now. It's become an essential part of our workflow. ROI is through the roof.",
     rating: 5,
   },
   {
     name: "Lisa Anderson",
     role: "Startup Founder",
     avatar: "LA",
-    content: "I'm not a developer, but I needed to modernize our website. FrontGenie made it possible. The results exceeded my expectations!",
+    content: "I'm not a developer, but I needed to modernize our website. Genie made it possible. The results exceeded my expectations!",
     rating: 5,
   },
   {

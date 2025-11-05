@@ -1,6 +1,6 @@
-# FrontGenie Monorepo
+# Genie Monorepo
 
-This repository houses the FrontGenie platform as a Turborepo workspace. It follows the architecture and roadmap described in `.notes/`.
+This repository houses the Genie platform as a Turborepo workspace. It follows the architecture and roadmap described in `.notes/`.
 
 ## Workspaces
 

@@ -2,8 +2,13 @@ import Fastify from 'fastify';
 import cors from '@fastify/cors';
 import helmet from '@fastify/helmet';
 import { fileURLToPath } from 'node:url';
+import { serializerCompiler, validatorCompiler, ZodTypeProvider } from 'fastify-type-provider-zod';
 
 import { env } from './env.js';
+import prismaPlugin from './plugins/prisma.js';
+import authPlugin from './plugins/auth.js';
+import authRoutes from './routes/auth.js';
+import projectRoutes from './routes/projects.js';
 
 export const createServer = async () => {
   const app = Fastify({
@@ -14,10 +19,20 @@ export const createServer = async () => {
           }
         }
       : true
-  });
+  }).withTypeProvider<ZodTypeProvider>();
+
+  app.setValidatorCompiler(validatorCompiler);
+  app.setSerializerCompiler(serializerCompiler);
 
   await app.register(cors, { origin: true, credentials: true });
   await app.register(helmet, { global: true });
+
+  // register plugins
+  await app.register(prismaPlugin);
+  await app.register(authPlugin);
+  // register routes
+  await app.register(authRoutes);
+  await app.register(projectRoutes);
 
   app.get('/health', async () => ({ status: 'ok', timestamp: new Date().toISOString() }));
 

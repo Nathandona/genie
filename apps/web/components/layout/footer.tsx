@@ -1,4 +1,4 @@
-import { Sparkles, Github, Twitter, Linkedin } from "lucide-react"
+import { Github, Twitter, Linkedin } from "lucide-react"
 import Link from "next/link"
 
 export function Footer() {
@@ -9,10 +9,7 @@ export function Footer() {
           {/* Brand */}
           <div>
             <Link href="/" className="mb-4 flex items-center gap-2">
-              <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-primary">
-                <Sparkles className="h-6 w-6 text-primary-foreground" />
-              </div>
-              <span className="text-xl font-bold">FrontGenie</span>
+              <span className="text-xl font-bold">Genie</span>
             </Link>
             <p className="text-sm text-muted-foreground">
               Transform any website into modern Next.js applications with AI-powered code generation.
@@ -128,7 +125,7 @@ export function Footer() {
         </div>
 
         <div className="mt-12 border-t pt-8 text-center text-sm text-muted-foreground">
-          <p>© {new Date().getFullYear()} FrontGenie. All rights reserved.</p>
+          <p>© {new Date().getFullYear()} Genie. All rights reserved.</p>
         </div>
       </div>
     </footer>

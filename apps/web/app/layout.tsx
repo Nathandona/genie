@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "FrontGenie - Transform Websites into Modern Next.js",
+  title: "Genie - Transform Websites into Modern Next.js",
   description: "Convert any website into a blazing-fast Next.js application in minutes with AI-powered code generation.",
 };
 

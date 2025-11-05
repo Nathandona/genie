@@ -1,5 +1,5 @@
 {
-  "name": "frontgenie",
+  "name": "genie",
   "private": true,
   "packageManager": "pnpm@9.8.0",
   "engines": {

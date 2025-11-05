@@ -1,0 +1,171 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  user
+  admin
+}
+
+enum SubscriptionTier {
+  free
+  pro
+  business
+  enterprise
+}
+
+enum ProjectStatus {
+  queued
+  crawling
+  analyzing
+  generating
+  completed
+  failed
+}
+
+enum AssetType {
+  image
+  font
+  svg
+}
+
+enum CrawlJobStatus {
+  pending
+  running
+  completed
+  failed
+}
+
+model User {
+  id               String            @id @default(uuid())
+  email            String            @unique
+  passwordHash     String
+  name             String?
+  avatarUrl        String?
+  role             UserRole          @default(user)
+  subscription     SubscriptionTier  @default(free)
+  stripeCustomerId String?           @unique
+  createdAt        DateTime          @default(now())
+  updatedAt        DateTime          @updatedAt
+
+  projects Project[]
+  apiKeys  ApiKey[]
+  usages   Usage[]
+}
+
+model Project {
+  id             String          @id @default(uuid())
+  userId         String
+  user           User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sourceUrl      String
+  status         ProjectStatus   @default(queued)
+  pageCount      Int             @default(0)
+  generationTime Int?
+  settings       Json            @default("{}")
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  completedAt    DateTime?
+
+  pages       Page[]
+  assets      Asset[]
+  generations Generation[]
+  crawlJobs   CrawlJob[]
+
+  @@index([userId])
+  @@index([status])
+  @@index([createdAt])
+}
+
+model Page {
+  id             String   @id @default(uuid())
+  projectId      String
+  project        Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  url            String
+  title          String?
+  metaDescription String?
+  htmlSnapshot   String?
+  sections       Json     @default("[]")
+  designTokens   Json     @default("{}")
+  createdAt      DateTime @default(now())
+
+  @@unique([projectId, url])
+  @@index([projectId])
+}
+
+model Asset {
+  id             String    @id @default(uuid())
+  projectId      String
+  project        Project   @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  type           AssetType
+  originalUrl    String
+  s3Path         String?
+  optimizedSizes Json?
+  metadata       Json?
+  createdAt      DateTime  @default(now())
+
+  @@index([projectId])
+  @@index([type])
+}
+
+model Generation {
+  id            String   @id @default(uuid())
+  projectId     String
+  project       Project  @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  version       String   @default("1.0.0")
+  s3ZipPath     String
+  fileCount     Int      @default(0)
+  totalSize     Int      @default(0)
+  downloadCount Int      @default(0)
+  createdAt     DateTime @default(now())
+
+  @@index([projectId])
+}
+
+model CrawlJob {
+  id              String         @id @default(uuid())
+  projectId       String
+  project         Project        @relation(fields: [projectId], references: [id], onDelete: Cascade)
+  status          CrawlJobStatus @default(pending)
+  progress        Int            @default(0)
+  currentPage     String?
+  pagesDiscovered Int            @default(0)
+  errors          Json           @default("[]")
+  startedAt       DateTime?
+  completedAt     DateTime?
+
+  @@index([projectId])
+  @@index([status])
+}
+
+model ApiKey {
+  id         String   @id @default(uuid())
+  userId     String
+  user       User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  key        String   @unique
+  name       String
+  lastUsedAt DateTime?
+  rateLimit  Int
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime?
+
+  @@index([userId])
+}
+
+model Usage {
+  id               String   @id @default(uuid())
+  userId           String
+  user             User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  period           String
+  generationsCount Int      @default(0)
+  pagesProcessed   Int      @default(0)
+  apiCallsCount    Int      @default(0)
+  createdAt        DateTime @default(now())
+
+  @@index([userId])
+  @@unique([userId, period])
+}

@@ -11,7 +11,7 @@ export function CTA() {
             Ready to Transform Your Website?
           </h2>
           <p className="mb-10 text-lg text-primary-foreground/90 sm:text-xl">
-            Join thousands of developers and teams who have already modernized their websites with FrontGenie.
+            Join thousands of developers and teams who have already modernized their websites with Genie.
             Start your free trial today—no credit card required.
           </p>
           <div className="flex flex-col items-center justify-center gap-4 sm:flex-row">

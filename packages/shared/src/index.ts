@@ -1,5 +1,5 @@
 /**
- * Shared type definitions for FrontGenie services.
+ * Shared type definitions for Genie services.
  */
 
 export const PROJECT_STATUSES = [

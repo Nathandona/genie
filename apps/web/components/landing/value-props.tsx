@@ -40,7 +40,7 @@ export function ValueProps() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mx-auto mb-16 max-w-2xl text-center">
           <h2 className="mb-4 text-3xl font-bold tracking-tight sm:text-5xl">
-            Why Choose FrontGenie?
+            Why Choose Genie?
           </h2>
           <p className="text-lg text-muted-foreground">
             Experience the future of web development with AI-powered automation

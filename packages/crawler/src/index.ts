@@ -2,7 +2,7 @@ import PQueue from 'p-queue';
 import puppeteer, { Browser } from 'puppeteer';
 import { z } from 'zod';
 
-import type { ProjectSettings } from '@frontgenie/shared';
+import type { ProjectSettings } from '@genie/shared';
 
 const crawlOptionsSchema = z.object({
   projectId: z.string(),

@@ -38,7 +38,7 @@ export const inferLayoutPatterns = async (
     input: [
       {
         role: 'system',
-        content: 'You are a layout classification engine for FrontGenie.'
+        content: 'You are a layout classification engine for Genie.'
       },
       {
         role: 'user',

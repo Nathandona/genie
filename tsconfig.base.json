@@ -18,7 +18,7 @@
     "types": ["node"],
     "baseUrl": ".",
     "paths": {
-      "@frontgenie/shared/*": ["packages/shared/src/*"]
+      "@genie/shared/*": ["packages/shared/src/*"]
     }
   }
 }

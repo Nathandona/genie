@@ -64,7 +64,7 @@ export function LiveDemo() {
             See It In Action
           </h2>
           <p className="text-lg text-muted-foreground">
-            Watch as FrontGenie transforms a website in real-time
+            Watch as Genie transforms a website in real-time
           </p>
         </div>
 

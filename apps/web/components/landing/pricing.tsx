@@ -8,7 +8,7 @@ const plans = [
   {
     name: "Free",
     price: "$0",
-    description: "Perfect for trying out FrontGenie",
+    description: "Perfect for trying out Genie",
     badge: null,
     features: [
       "1 generation per month",
