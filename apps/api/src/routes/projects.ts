@@ -138,4 +138,29 @@ export default async function projectRoutes(app: FastifyInstance) {
     // For now return the s3 path as the download link (frontend will request signed url from S3 integration)
     return { download: generation.s3ZipPath, fileCount: generation.fileCount, totalSize: generation.totalSize };
   });
+
+  // delete project
+  server.delete('/projects/:id', {
+    preHandler: server.authenticate,
+    schema: {
+      params: projectIdParamsSchema,
+      response: { 204: z.any() },
+      tags: ['projects']
+    }
+  }, async (request, reply) => {
+    const userId = request.user.sub;
+    const { id } = projectIdParamsSchema.parse(request.params);
+    const project = await server.db.project.findUnique({ where: { id } });
+    if (!project || project.userId !== userId) {
+      return reply.status(404).send({ message: 'Project not found' });
+    }
+
+    // Delete related records (cascade should handle this, but being explicit)
+    await server.db.generation.deleteMany({ where: { projectId: id } });
+    await server.db.page.deleteMany({ where: { projectId: id } });
+    await server.db.crawlJob.deleteMany({ where: { projectId: id } });
+    await server.db.project.delete({ where: { id } });
+
+    return reply.status(204).send();
+  });
 }

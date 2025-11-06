@@ -122,6 +122,12 @@ class ApiClient {
     });
   }
 
+  async deleteProject(id: string): Promise<void> {
+    return this.request<void>(`/projects/${id}`, {
+      method: 'DELETE',
+    });
+  }
+
   // Pages
   async getProjectPages(projectId: string): Promise<Page[]> {
     return this.request<Page[]>(`/projects/${projectId}/pages`);
@@ -130,6 +136,24 @@ class ApiClient {
   // Download
   async getDownloadInfo(projectId: string): Promise<DownloadInfo> {
     return this.request<DownloadInfo>(`/projects/${projectId}/download`);
+  }
+
+  async downloadProject(projectId: string): Promise<Blob> {
+    const token = getAuthToken();
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetch(`${this.baseUrl}/projects/${projectId}/download`, {
+      headers,
+    });
+
+    if (!response.ok) {
+      throw new Error('Download failed');
+    }
+
+    return response.blob();
   }
 
   // Progress tracking (polls project status)
