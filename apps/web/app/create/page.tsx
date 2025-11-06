@@ -86,9 +86,9 @@ export default function CreateProject() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Header */}
         <div className="mb-8 text-center">
-          <Link href="/" className="inline-block mb-6">
+          <Link href="/dashboard" className="inline-block mb-6">
             <Badge variant="outline" className="text-sm">
-              ← Back to Home
+              ← Back to Dashboard
             </Badge>
           </Link>
           <h1 className="mb-4 text-4xl font-bold tracking-tight sm:text-5xl">
