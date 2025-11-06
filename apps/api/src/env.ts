@@ -9,7 +9,10 @@ const envSchema = z.object({
   REDIS_URL: z.string().min(1, 'REDIS_URL is required'),
   JWT_SECRET: z.string().min(32, 'JWT_SECRET must be at least 32 characters'),
   OPENAI_API_KEY: z.string().optional(),
-  ANTHROPIC_API_KEY: z.string().optional()
+  ANTHROPIC_API_KEY: z.string().optional(),
+  POLAR_ACCESS_TOKEN: z.string().min(1, 'POLAR_ACCESS_TOKEN is required'),
+  POLAR_WEBHOOK_SECRET: z.string().optional(),
+  POLAR_ORGANIZATION_ID: z.string().optional()
 });
 
 const parsed = envSchema.safeParse(process.env);

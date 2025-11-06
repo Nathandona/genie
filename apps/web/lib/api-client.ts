@@ -196,6 +196,36 @@ class ApiClient {
     this.setToken(result.token);
     return result;
   }
+
+  // Polar.sh Payments
+  async getPolarProducts(): Promise<any[]> {
+    const response = await this.request<{ products: any[] }>('/polar/products');
+    return response.products || [];
+  }
+
+  async createPolarCheckout(priceId: string, successUrl?: string): Promise<{ checkoutUrl: string; checkoutId: string }> {
+    return this.request<{ checkoutUrl: string; checkoutId: string }>('/polar/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ priceId, successUrl }),
+    });
+  }
+
+  async getPolarSubscriptions(): Promise<any[]> {
+    const response = await this.request<{ subscriptions: any[] }>('/polar/subscriptions');
+    return response.subscriptions || [];
+  }
+
+  async cancelPolarSubscription(subscriptionId: string): Promise<boolean> {
+    const response = await this.request<{ success: boolean }>(`/polar/subscriptions/${subscriptionId}/cancel`, {
+      method: 'POST',
+    });
+    return response.success;
+  }
+
+  async getPolarPortalUrl(): Promise<string> {
+    const response = await this.request<{ url: string }>('/polar/portal');
+    return response.url;
+  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

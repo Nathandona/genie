@@ -42,16 +42,19 @@ enum CrawlJobStatus {
 }
 
 model User {
-  id               String            @id @default(uuid())
-  email            String            @unique
-  passwordHash     String
-  name             String?
-  avatarUrl        String?
-  role             UserRole          @default(user)
-  subscription     SubscriptionTier  @default(free)
-  stripeCustomerId String?           @unique
-  createdAt        DateTime          @default(now())
-  updatedAt        DateTime          @updatedAt
+  id                 String            @id @default(uuid())
+  email              String            @unique
+  passwordHash       String
+  name               String?
+  avatarUrl          String?
+  role               UserRole          @default(user)
+  subscription       SubscriptionTier  @default(free)
+  stripeCustomerId   String?           @unique
+  subscriptionId     String?           @unique // Polar subscription ID
+  subscriptionStatus String?           // active, canceled, past_due, etc.
+  subscriptionTier   String?           // Polar product name
+  createdAt          DateTime          @default(now())
+  updatedAt          DateTime          @updatedAt
 
   projects Project[]
   apiKeys  ApiKey[]
