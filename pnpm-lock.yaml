@@ -107,6 +107,9 @@ importers:
       prisma:
         specifier: ^5.20.0
         version: 5.22.0
+      tsup:
+        specifier: ^8.1.0
+        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
       yauzl:
         specifier: ^3.2.0
         version: 3.2.0
@@ -123,9 +126,6 @@ importers:
       eslint:
         specifier: ^9.9.0
         version: 9.39.1(jiti@2.6.1)
-      tsup:
-        specifier: ^8.1.0
-        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
       tsx:
         specifier: ^4.16.0
         version: 4.20.6
@@ -244,6 +244,9 @@ importers:
       openai:
         specifier: ^4.52.0
         version: 4.104.0(ws@8.18.3)(zod@3.25.76)
+      tsup:
+        specifier: ^8.1.0
+        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -251,9 +254,6 @@ importers:
       eslint:
         specifier: ^9.9.0
         version: 9.39.1(jiti@2.6.1)
-      tsup:
-        specifier: ^8.1.0
-        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
@@ -278,6 +278,9 @@ importers:
       postcss-value-parser:
         specifier: ^4.2.0
         version: 4.2.0
+      tsup:
+        specifier: ^8.1.0
+        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -285,9 +288,6 @@ importers:
       eslint:
         specifier: ^9.9.0
         version: 9.39.1(jiti@2.6.1)
-      tsup:
-        specifier: ^8.1.0
-        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
@@ -315,6 +315,9 @@ importers:
       puppeteer-core:
         specifier: ^24.29.1
         version: 24.29.1
+      tsup:
+        specifier: ^8.1.0
+        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -322,9 +325,6 @@ importers:
       eslint:
         specifier: ^9.9.0
         version: 9.39.1(jiti@2.6.1)
-      tsup:
-        specifier: ^8.1.0
-        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
@@ -349,6 +349,9 @@ importers:
       prettier:
         specifier: ^3.3.3
         version: 3.6.2
+      tsup:
+        specifier: ^8.1.0
+        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
       zod:
         specifier: ^3.23.8
         version: 3.25.76
@@ -362,9 +365,6 @@ importers:
       eslint:
         specifier: ^9.9.0
         version: 9.39.1(jiti@2.6.1)
-      tsup:
-        specifier: ^8.1.0
-        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
       typescript:
         specifier: ^5.5.4
         version: 5.9.3
@@ -373,13 +373,14 @@ importers:
         version: 2.1.9(@edge-runtime/vm@3.2.0)(@types/node@20.19.24)(lightningcss@1.30.2)
 
   packages/shared:
+    dependencies:
+      tsup:
+        specifier: ^8.1.0
+        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
     devDependencies:
       eslint:
         specifier: ^9.9.0
         version: 9.39.1(jiti@2.6.1)
-      tsup:
-        specifier: ^8.1.0
-        version: 8.5.0(jiti@2.6.1)(postcss@8.5.6)(tsx@4.20.6)(typescript@5.9.3)(yaml@2.8.1)
       typescript:
         specifier: ^5.5.4
         version: 5.9.3

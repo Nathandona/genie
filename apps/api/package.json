@@ -5,7 +5,7 @@
   "type": "module",
   "scripts": {
     "dev": "tsx --watch src/server.ts",
-    "build": "tsup src/server.ts --format esm --splitting false --sourcemap",
+    "build": "npx tsup src/server.ts --format esm --splitting false --sourcemap",
     "start": "node dist/server.js",
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
@@ -36,6 +36,7 @@
     "pino": "^9.4.0",
     "pino-pretty": "^11.2.1",
     "prisma": "^5.20.0",
+    "tsup": "^8.1.0",
     "yauzl": "^3.2.0",
     "zod": "^3.23.8"
   },
@@ -43,7 +44,6 @@
     "@types/archiver": "^7.0.0",
     "@types/yauzl": "^2.10.3",
     "eslint": "^9.9.0",
-    "tsup": "^8.1.0",
     "tsx": "^4.16.0",
     "typescript": "^5.5.4",
     "vitest": "^2.1.0"
