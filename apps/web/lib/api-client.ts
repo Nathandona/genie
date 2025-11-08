@@ -5,8 +5,30 @@
 import { getAuthToken, setAuthToken as saveAuthToken, clearAuthToken } from './auth';
 import { DEV_UTILS } from './dev-utils';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
-  (typeof window !== 'undefined' ? '/api' : 'http://localhost:4000');
+// Determine API base URL
+// In production on Vercel, use /api (relative path) to route through serverless function
+// In development, use NEXT_PUBLIC_API_URL or default to localhost
+const getApiBaseUrl = () => {
+  // If explicitly set, use it
+  if (process.env.NEXT_PUBLIC_API_URL) {
+    const url = process.env.NEXT_PUBLIC_API_URL;
+    // If it's a full URL and doesn't end with /api, append it
+    if (url.startsWith('http') && !url.endsWith('/api')) {
+      return `${url}/api`;
+    }
+    return url;
+  }
+  
+  // In browser (client-side), use relative /api path
+  if (typeof window !== 'undefined') {
+    return '/api';
+  }
+  
+  // Server-side default
+  return 'http://localhost:4000';
+};
+
+const API_BASE_URL = getApiBaseUrl();
 
 export interface Project {
   id: string;

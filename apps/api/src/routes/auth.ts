@@ -122,9 +122,7 @@ export default async function authRoutes(app: FastifyInstance) {
     '/auth/logout',
     {
       preHandler: server.authenticate,
-      schema: {
-        tags: ['auth']
-      }
+      schema: {}
     },
     async (_request, reply) => {
       return reply.status(204).send();

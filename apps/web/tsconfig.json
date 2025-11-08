@@ -28,7 +28,8 @@
     "**/*.tsx",
     ".next/types/**/*.ts",
     ".next/dev/types/**/*.ts",
-    "**/*.mts"
+    "**/*.mts",
+    "api/types.d.ts"
   ],
-  "exclude": ["node_modules", "api"]
+  "exclude": ["node_modules", "api/**/*.ts", "!api/types.d.ts"]
 }

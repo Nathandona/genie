@@ -1,5 +1,29 @@
 {
   "$schema": "https://turbo.build/schema.json",
+  "globalEnv": [
+    "REDIS_URL",
+    "JWT_SECRET",
+    "POLAR_ACCESS_TOKEN",
+    "DATABASE_URL",
+    "DATABASE_POSTGRES_URL",
+    "DATABASE_POSTGRES_PRISMA_URL",
+    "DATABASE_URL_UNPOOLED",
+    "DATABASE_POSTGRES_URL_NON_POOLING",
+    "DATABASE_PGHOST",
+    "DATABASE_POSTGRES_USER",
+    "DATABASE_POSTGRES_PASSWORD",
+    "DATABASE_POSTGRES_DATABASE",
+    "DATABASE_PGPASSWORD",
+    "DATABASE_PGDATABASE",
+    "DATABASE_PGHOST_UNPOOLED",
+    "DATABASE_PGUSER",
+    "DATABASE_POSTGRES_URL_NO_SSL",
+    "DATABASE_POSTGRES_HOST",
+    "DATABASE_NEON_PROJECT_ID",
+    "NODE_ENV",
+    "VERCEL",
+    "VERCEL_ENV"
+  ],
   "tasks": {
     "build": {
       "dependsOn": ["^build", "@genie/api#prisma:generate"],

@@ -332,7 +332,7 @@ async function createZipArchive(sourceDir: string, outputPath: string): Promise<
 
     output.on('close', () => resolve());
     archive.on('error', (err: Error) => reject(err));
-    archive.on('warning', (err: Error) => {
+    archive.on('warning', (err: Error & { code?: string }) => {
       // Log warnings but don't fail
       if (err.code === 'ENOENT') {
         console.warn('Archive warning:', err.message);

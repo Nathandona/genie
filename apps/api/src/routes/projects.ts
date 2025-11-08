@@ -116,7 +116,7 @@ export default async function projectRoutes(app: FastifyInstance) {
     if (!project || project.userId !== userId) return reply.status(404).send({ message: 'Project not found' });
 
     const pages = await server.db.page.findMany({ where: { projectId: id }, orderBy: { createdAt: 'asc' } });
-    return pages.map(p => ({
+    return pages.map((p) => ({
       id: p.id,
       url: p.url,
       title: p.title,

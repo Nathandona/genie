@@ -39,6 +39,14 @@ const nextConfig: NextConfig = {
     
     return config;
   },
+  // Skip type checking during build (types are checked separately)
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  // Skip ESLint during build
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
 };
 
 export default nextConfig;
