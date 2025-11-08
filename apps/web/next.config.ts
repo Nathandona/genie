@@ -15,6 +15,28 @@ const nextConfig: NextConfig = {
     }
     return [];
   },
+  // Exclude API directory from Next.js processing
+  // API functions are handled separately by Vercel as serverless functions
+  pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
+  // Configure webpack to ignore the API directory
+  webpack: (config, { isServer }) => {
+    // Exclude API directory from webpack processing
+    config.watchOptions = {
+      ...config.watchOptions,
+      ignored: ['**/api/**', '**/node_modules/**'],
+    };
+    
+    if (!isServer) {
+      config.resolve.fallback = {
+        ...config.resolve.fallback,
+        fs: false,
+        net: false,
+        tls: false,
+      };
+    }
+    
+    return config;
+  },
 };
 
 export default nextConfig;
