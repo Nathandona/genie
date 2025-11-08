@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiUrl } from '@/lib/api-url';
+import { authSignup, type ApiError } from '@/lib/server-api-client';
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     const { email, password, name } = body;
 
+    // Validate input
     if (!email || !password) {
       return NextResponse.json(
         { message: 'Email and password are required' },
@@ -20,79 +21,42 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // In production, call the backend API directly through the serverless wrapper
-    // We need to use an absolute URL and a special header to bypass Next.js routing
-    let url: string;
-    let headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    
-    if (process.env.NODE_ENV === 'production') {
-      // Use the serverless function endpoint which routes to Fastify
-      const host = process.env.NEXT_PUBLIC_APP_URL 
-        ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
-        : process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}`
-        : 'https://genie-teal.vercel.app';
-      // Call the backend API through the serverless wrapper
-      // Use /api/v1 to ensure it goes to the serverless function, not Next.js route
-      url = `${host}/api/v1/auth/signup`;
-      headers['x-internal-request'] = 'true';
-    } else {
-      // In development, call backend directly
-      url = getApiUrl('/auth/signup');
-    }
+    // Call backend via HTTP (works in both dev and production)
+    const result = await authSignup({ email, password, name });
+    const { token, user } = result;
 
-    console.log('[Signup API Route] Calling backend at:', url);
-
-    const response = await fetch(url, {
-      method: 'POST',
-      headers,
-      body: JSON.stringify({ email, password, name }),
-    });
-
-    // Check if response is HTML (error page) instead of JSON
-    const contentType = response.headers.get('content-type') || '';
-    if (!contentType.includes('application/json')) {
-      const text = await response.text();
-      console.error('[Signup API Route] Non-JSON response:', {
-        status: response.status,
-        contentType,
-        bodyPreview: text.substring(0, 200)
-      });
-      return NextResponse.json(
-        { message: 'Backend API returned an error. Please try again.' },
-        { status: 500 }
-      );
-    }
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      return NextResponse.json(
-        { message: data.message || 'Signup failed' },
-        { status: response.status }
-      );
-    }
-
-    // Set HTTP-only cookie with JWT token
-    const token = data.token;
-    const responseWithCookie = NextResponse.json(
-      { user: data.user },
+    // Create response with cookie
+    const isProduction = process.env.NODE_ENV === 'production';
+    const response = NextResponse.json(
+      { user },
       { status: 201 }
     );
 
-    responseWithCookie.cookies.set('auth-token', token, {
-      httpOnly: false, // Allow client-side access for Authorization header
-      secure: process.env.NODE_ENV === 'production',
+    // Set auth cookie with appropriate security settings
+    // Note: httpOnly is false to allow client-side JavaScript to read the token
+    // This is needed for the current client-side API client implementation
+    response.cookies.set('auth-token', token, {
+      httpOnly: false, // Client-side code reads this cookie
+      secure: isProduction, // HTTPS only in production
       sameSite: 'lax',
       maxAge: 60 * 60 * 24 * 7, // 7 days
       path: '/',
     });
 
-    return responseWithCookie;
+    return response;
   } catch (error) {
-    console.error('Signup error:', error);
+    console.error('[Signup API Route] Error:', error);
+    
+    // Handle API errors
+    if (error && typeof error === 'object' && 'statusCode' in error) {
+      const apiError = error as ApiError;
+      return NextResponse.json(
+        { message: apiError.message || 'Signup failed' },
+        { status: apiError.statusCode || 500 }
+      );
+    }
+
+    // Handle other errors
     return NextResponse.json(
       { message: error instanceof Error ? error.message : 'Internal server error' },
       { status: 500 }

@@ -4,7 +4,7 @@
  */
 
 import { cookies } from 'next/headers';
-import { getApiUrl } from './api-url';
+import { authSession } from './server-api-client';
 
 export interface User {
   id: string;
@@ -27,22 +27,9 @@ export async function getServerSession(): Promise<{ user: User } | null> {
       return null;
     }
 
-    const url = getApiUrl('/auth/session');
-    const response = await fetch(url, {
-      method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
-      cache: 'no-store',
-    });
-
-    if (!response.ok) {
-      return null;
-    }
-
-    const data = await response.json();
-    return data;
+    // Use server API client for consistent error handling
+    const result = await authSession(token);
+    return result;
   } catch (error) {
     console.error('Failed to get server session:', error);
     return null;

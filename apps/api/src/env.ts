@@ -21,6 +21,8 @@ const envSchema = z.object({
   POLAR_ACCESS_TOKEN: z.string().min(1, 'POLAR_ACCESS_TOKEN is required'),
   POLAR_WEBHOOK_SECRET: z.string().optional(),
   POLAR_ORGANIZATION_ID: z.string().optional(),
+  // Web app origin for CORS (optional, defaults to allowing all origins)
+  WEB_APP_ORIGIN: z.string().url().optional(),
   // Vercel-specific
   VERCEL: z.string().optional(),
   VERCEL_ENV: z.string().optional(),

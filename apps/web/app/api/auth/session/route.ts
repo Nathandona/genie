@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { getApiUrl } from '@/lib/api-url';
+import { authSession, type ApiError } from '@/lib/server-api-client';
 
 export async function GET(request: NextRequest) {
   try {
@@ -12,49 +12,35 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // In production, call the backend API directly through the serverless wrapper
-    // Use /api/v1 to ensure it goes to the serverless function, not Next.js route
-    let url: string;
-    let headers: Record<string, string> = {
-      'Authorization': `Bearer ${token}`,
-      'Content-Type': 'application/json',
-    };
-    
-    if (process.env.NODE_ENV === 'production') {
-      const host = process.env.NEXT_PUBLIC_APP_URL 
-        ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
-        : process.env.VERCEL_URL 
-        ? `https://${process.env.VERCEL_URL}`
-        : 'https://genie-teal.vercel.app';
-      url = `${host}/api/v1/auth/session`;
-      headers['x-internal-request'] = 'true';
-    } else {
-      url = getApiUrl('/auth/session');
-    }
-
-    const response = await fetch(url, {
-      method: 'GET',
-      headers,
-    });
-
-    if (!response.ok) {
-      // If session is invalid, clear the cookie
-      const responseWithClearedCookie = NextResponse.json(
-        { message: 'Session expired' },
-        { status: 401 }
-      );
-      responseWithClearedCookie.cookies.delete('auth-token');
-      return responseWithClearedCookie;
-    }
-
-    const data = await response.json();
-    return NextResponse.json(data);
+    // Call backend via HTTP (works in both dev and production)
+    const result = await authSession(token);
+    return NextResponse.json(result);
   } catch (error) {
-    console.error('Session error:', error);
+    console.error('[Session API Route] Error:', error);
+    
+    // Handle API errors (401 = unauthorized, clear cookie)
+    if (error && typeof error === 'object' && 'statusCode' in error) {
+      const apiError = error as ApiError;
+      
+      if (apiError.statusCode === 401) {
+        const response = NextResponse.json(
+          { message: 'Session expired' },
+          { status: 401 }
+        );
+        response.cookies.delete('auth-token');
+        return response;
+      }
+      
+      return NextResponse.json(
+        { message: apiError.message || 'Session check failed' },
+        { status: apiError.statusCode || 500 }
+      );
+    }
+
+    // Handle other errors
     return NextResponse.json(
       { message: 'Internal server error' },
       { status: 500 }
     );
   }
 }
-

@@ -50,8 +50,8 @@ function LoginForm() {
       }
 
       // Success - redirect to dashboard
-      const redirect = searchParams.get('redirect') || '/dashboard'
-      window.location.href = redirect
+        const redirect = searchParams.get('redirect') || '/dashboard'
+        window.location.href = redirect
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong"
       setError(message)

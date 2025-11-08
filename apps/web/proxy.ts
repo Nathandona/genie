@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
 import { cookies } from 'next/headers'
-import { getApiUrl } from '@/lib/api-url'
+import { authSession, type ApiError } from '@/lib/server-api-client'
 
 // Paths that require authentication
 const protectedPaths = ['/dashboard', '/create', '/progress', '/results']
@@ -24,33 +24,24 @@ export async function proxy(request: NextRequest) {
     const cookieStore = await cookies()
     const token = cookieStore.get('auth-token')?.value
 
-    // If no token, verify session with backend
+    // If no token, redirect to login
     if (!token) {
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(loginUrl)
     }
 
-    // Verify token is still valid
+    // Verify token is still valid using server API client
     try {
-      const url = getApiUrl('/auth/session')
-      const response = await fetch(url, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/json',
-        },
-        cache: 'no-store',
-      })
-
-      if (!response.ok) {
-        // Token invalid, redirect to login
-        const loginUrl = new URL('/login', request.url)
-        loginUrl.searchParams.set('redirect', pathname)
-        return NextResponse.redirect(loginUrl)
-      }
+      await authSession(token)
+      // Token is valid, continue
     } catch (error) {
-      // Error verifying token, redirect to login
+      // Token invalid or expired, redirect to login
+      console.log('[Middleware] Session validation failed:', {
+        pathname,
+        error: error instanceof Error ? error.message : 'Unknown error',
+      })
+      
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(loginUrl)
@@ -64,21 +55,12 @@ export async function proxy(request: NextRequest) {
     
     if (token) {
       try {
-        const url = getApiUrl('/auth/session')
-        const response = await fetch(url, {
-          method: 'GET',
-          headers: {
-            'Authorization': `Bearer ${token}`,
-            'Content-Type': 'application/json',
-          },
-          cache: 'no-store',
-        })
-
-        if (response.ok) {
-          return NextResponse.redirect(new URL('/dashboard', request.url))
-        }
+        await authSession(token)
+        // Token is valid, redirect to dashboard
+        return NextResponse.redirect(new URL('/dashboard', request.url))
       } catch (error) {
-        // Error verifying token, allow login page
+        // Token invalid, allow login page
+        // (error already logged above if it was a protected path)
       }
     }
   }

@@ -26,7 +26,17 @@ export const createServer = async () => {
   app.setValidatorCompiler(validatorCompiler);
   app.setSerializerCompiler(serializerCompiler);
 
-  await app.register(cors, { origin: true, credentials: true });
+  // Configure CORS
+  // In production, use WEB_APP_ORIGIN if set, otherwise allow all origins
+  // In development, allow all origins for easier local development
+  const corsOrigin = env.NODE_ENV === 'production' && env.WEB_APP_ORIGIN
+    ? [env.WEB_APP_ORIGIN]
+    : true; // Allow all origins
+
+  await app.register(cors, { 
+    origin: corsOrigin,
+    credentials: true 
+  });
   await app.register(helmet, { global: true });
 
   // register plugins
