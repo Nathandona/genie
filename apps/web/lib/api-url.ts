@@ -45,6 +45,21 @@ export function getApiUrl(endpoint: string): string {
   const baseUrl = getApiBaseUrl();
   // Ensure endpoint starts with /
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
-  return `${baseUrl}${normalizedEndpoint}`;
+  const url = `${baseUrl}${normalizedEndpoint}`;
+  
+  // In production, if we're server-side and the URL is relative, make it absolute
+  // This is needed for fetch() calls from NextAuth authorize function
+  if (process.env.NODE_ENV === 'production' && url.startsWith('/')) {
+    // Check if we're in a server-side context (no window object)
+    if (typeof window === 'undefined') {
+      // Construct absolute URL using Vercel URL or fallback
+      const host = process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}`
+        : process.env.NEXT_PUBLIC_APP_URL || 'https://genie-teal.vercel.app';
+      return `${host}${url}`;
+    }
+  }
+  
+  return url;
 }
 
