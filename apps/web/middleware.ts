@@ -1,11 +1,17 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
+import { getToken } from 'next-auth/jwt'
 
 // Paths that require authentication
 const protectedPaths = ['/dashboard', '/create', '/progress', '/results']
 
-export function proxy(request: NextRequest) {
+export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
+
+  // Skip NextAuth API routes
+  if (pathname.startsWith('/api/auth')) {
+    return NextResponse.next()
+  }
 
   // Check if the current path is protected
   const isProtectedPath = protectedPaths.some((path) =>
@@ -13,8 +19,11 @@ export function proxy(request: NextRequest) {
   )
 
   if (isProtectedPath) {
-    // Check for auth token in cookies or localStorage (via cookie)
-    const token = request.cookies.get('genie_auth_token')?.value
+    // Check for NextAuth session token
+    const token = await getToken({ 
+      req: request as any,
+      secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET 
+    })
 
     // If no token, redirect to login
     if (!token) {
@@ -26,7 +35,10 @@ export function proxy(request: NextRequest) {
 
   // If on login page and already authenticated, redirect to dashboard
   if (pathname === '/login') {
-    const token = request.cookies.get('genie_auth_token')?.value
+    const token = await getToken({ 
+      req: request as any,
+      secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET 
+    })
     if (token) {
       return NextResponse.redirect(new URL('/dashboard', request.url))
     }
@@ -39,11 +51,12 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes)
+     * - api (API routes - including NextAuth)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
      */
-    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt).*)',
+    '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|icon.svg).*)',
   ],
 }
+

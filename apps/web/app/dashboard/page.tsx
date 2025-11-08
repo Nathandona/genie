@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect, useRef, useCallback } from "react"
+import { useSession } from "next-auth/react"
 import { apiClient } from "@/lib/api-client"
 import { type Project, convertProject } from "@/lib/project-utils"
 import { DashboardHeader } from "@/components/dashboard/dashboard-header"
@@ -15,6 +16,7 @@ import { Notification } from "@/components/dashboard/notification"
 import { DeleteConfirmationDialog } from "@/components/dashboard/delete-confirmation-dialog"
 
 export default function DashboardPage() {
+  const { data: session, status } = useSession()
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid")
   const [searchQuery, setSearchQuery] = useState("")
   const [filter, setFilter] = useState<"all" | "completed" | "processing">("all")
@@ -32,8 +34,20 @@ export default function DashboardPage() {
 
   // Fetch projects from API
   const fetchProjects = useCallback(async () => {
+    // Wait for session to be loaded
+    if (status === "loading") {
+      return
+    }
+
     // Prevent concurrent fetches
     if (isFetchingRef.current) return
+
+    // Check if we have a session
+    if (status === "unauthenticated" || !session) {
+      setError("Please sign in to view your projects")
+      setIsLoading(false)
+      return
+    }
 
     try {
       isFetchingRef.current = true
@@ -47,7 +61,7 @@ export default function DashboardPage() {
       isFetchingRef.current = false
       setIsLoading(false)
     }
-  }, [])
+  }, [session, status])
 
   // Initial fetch
   useEffect(() => {

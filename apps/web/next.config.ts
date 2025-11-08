@@ -5,14 +5,10 @@ const nextConfig: NextConfig = {
   // In production on Vercel, API routes are handled by serverless functions
   // In development, proxy to local API server
   async rewrites() {
-    if (process.env.NODE_ENV === 'development' && process.env.NEXT_PUBLIC_API_URL) {
-      return [
-        {
-          source: '/api/:path*',
-          destination: `${process.env.NEXT_PUBLIC_API_URL}/:path*`,
-        },
-      ];
-    }
+    // Note: We don't proxy /api/* routes here because:
+    // 1. NextAuth routes (/api/auth/*) must be handled by Next.js route handlers
+    // 2. Backend API routes are accessed directly via NEXT_PUBLIC_API_URL in the API client
+    // 3. In production, /api/* goes through Vercel serverless function wrapper
     return [];
   },
   // Exclude API directory from Next.js processing

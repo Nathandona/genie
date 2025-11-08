@@ -1,29 +1,24 @@
 "use client"
 
 import { Button } from "@/components/ui/button"
-import { Menu, X, LogOut, Sparkles } from "lucide-react"
+import { Menu, X, LogOut } from "lucide-react"
 import Link from "next/link"
 
-import { useState, useEffect } from "react"
+import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { isAuthenticated, clearAuthToken } from "@/lib/auth"
+import { useSession, signOut } from "@/lib/auth"
+import { Logo } from "./logo"
 
 export function Header() {
   const router = useRouter()
+  const { data: session, status } = useSession()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  // Hydration-safe: only show auth-based nav after mount
-  const [mounted, setMounted] = useState(false)
-  const [isLoggedIn, setIsLoggedIn] = useState(false)
+  const isLoggedIn = status === "authenticated"
+  const isLoading = status === "loading"
 
-  useEffect(() => {
-    setIsLoggedIn(isAuthenticated())
-    setMounted(true)
-  }, [])
-
-  const handleLogout = () => {
-    clearAuthToken()
-    setIsLoggedIn(false)
+  const handleLogout = async () => {
+    await signOut({ redirect: false })
     router.push('/')
     router.refresh()
   }
@@ -33,21 +28,10 @@ export function Header() {
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="flex h-16 items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="group flex items-center gap-2 transition-opacity hover:opacity-80">
-            <div className="relative">
-              <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 blur-sm opacity-0 transition-opacity group-hover:opacity-100" />
-              <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70">
-                <Sparkles className="h-4 w-4 text-primary-foreground" />
-              </div>
-            </div>
-            <span className="bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-xl font-bold tracking-tight text-transparent">
-              Genie
-            </span>
-          </Link>
+          <Logo size="md" />
 
           {/* Desktop Navigation */}
-          {/* Hydration-safe: hide nav/CTA until mounted to avoid UI flash */}
-          {mounted && (
+          {!isLoading && (
             <>
               <nav className="hidden items-center gap-1 md:flex">
                 {isLoggedIn && (
@@ -117,7 +101,7 @@ export function Header() {
         </div>
 
         {/* Mobile Menu */}
-        {mobileMenuOpen && mounted && (
+        {mobileMenuOpen && !isLoading && (
           <div className="border-t border-border/40 bg-background/95 backdrop-blur-xl py-4 md:hidden animate-in slide-in-from-top-2">
             <nav className="flex flex-col gap-1">
               {isLoggedIn && (

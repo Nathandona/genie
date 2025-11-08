@@ -1,13 +1,5 @@
 import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { apiClient, type Project, type Page, type CrawlJob, type DownloadInfo } from '../api-client';
-import * as authModule from '../auth';
-
-// Mock auth module
-vi.mock('../auth', () => ({
-  getAuthToken: vi.fn(),
-  setAuthToken: vi.fn(),
-  clearAuthToken: vi.fn(),
-}));
 
 // Mock dev-utils
 vi.mock('../dev-utils', () => ({
@@ -23,23 +15,12 @@ describe('ApiClient', () => {
   beforeEach(() => {
     vi.clearAllMocks();
     global.fetch = mockFetch;
-    vi.mocked(authModule.getAuthToken).mockReturnValue('test-token');
+    // Set up a mock token getter for tests
+    apiClient.setTokenGetter(async () => 'test-token');
   });
 
   afterEach(() => {
     global.fetch = originalFetch;
-  });
-
-  describe('token management', () => {
-    it('should set token', () => {
-      apiClient.setToken('new-token');
-      expect(authModule.setAuthToken).toHaveBeenCalledWith('new-token');
-    });
-
-    it('should clear token', () => {
-      apiClient.clearToken();
-      expect(authModule.clearAuthToken).toHaveBeenCalled();
-    });
   });
 
   describe('getProjects', () => {
@@ -303,58 +284,8 @@ describe('ApiClient', () => {
     });
   });
 
-  describe('login', () => {
-    it('should login and set token', async () => {
-      const mockResponse = { token: 'new-token' };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await apiClient.login('test@example.com', 'password');
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/auth/login'),
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({
-            email: 'test@example.com',
-            password: 'password',
-          }),
-        })
-      );
-      expect(authModule.setAuthToken).toHaveBeenCalledWith('new-token');
-      expect(result).toEqual(mockResponse);
-    });
-  });
-
-  describe('register', () => {
-    it('should register and set token', async () => {
-      const mockResponse = { token: 'new-token' };
-
-      mockFetch.mockResolvedValueOnce({
-        ok: true,
-        json: async () => mockResponse,
-      });
-
-      const result = await apiClient.register('test@example.com', 'password', 'Test User');
-
-      expect(mockFetch).toHaveBeenCalledWith(
-        expect.stringContaining('/auth/signup'),
-        expect.objectContaining({
-          method: 'POST',
-          body: JSON.stringify({
-            email: 'test@example.com',
-            password: 'password',
-            name: 'Test User',
-          }),
-        })
-      );
-      expect(authModule.setAuthToken).toHaveBeenCalledWith('new-token');
-      expect(result).toEqual(mockResponse);
-    });
-  });
+  // Note: login/register methods removed - authentication now handled by NextAuth
+  // These tests are kept for reference but the methods no longer exist in apiClient
 
   describe('Polar.sh methods', () => {
     it('should get Polar products', async () => {
@@ -470,7 +401,8 @@ describe('ApiClient', () => {
     });
 
     it('should handle requests without auth token', async () => {
-      vi.mocked(authModule.getAuthToken).mockReturnValue(null);
+      // Set token getter to return null
+      apiClient.setTokenGetter(async () => null);
 
       mockFetch.mockResolvedValueOnce({
         ok: true,

@@ -18,14 +18,6 @@ export const DEV_UTILS = {
     }
   },
   
-  // Mock auth token for testing
-  setTestAuthToken: (token: string = 'test-token-123') => {
-    if (typeof window !== 'undefined') {
-      localStorage.setItem('genie_auth_token', token);
-      console.log('✅ Test auth token set:', token);
-    }
-  },
-  
   // Clear all local storage
   clearAllData: () => {
     if (typeof window !== 'undefined') {
@@ -34,12 +26,12 @@ export const DEV_UTILS = {
     }
   },
   
-  // Check current auth status
+  // Check NextAuth session (for development debugging)
   checkAuth: () => {
     if (typeof window !== 'undefined') {
-      const token = localStorage.getItem('genie_auth_token');
-      console.log('🔐 Auth token:', token ? '✅ Present' : '❌ Missing');
-      return !!token;
+      console.log('💡 Use NextAuth session - check window.sessionStorage or cookies');
+      console.log('💡 NextAuth session is managed automatically');
+      return true;
     }
     return false;
   }

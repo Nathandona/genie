@@ -16,3 +16,4 @@ test-results/
 playwright/.cache/
 .vitest/
 *.log
+AGENTS.md

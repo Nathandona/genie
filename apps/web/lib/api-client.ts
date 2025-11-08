@@ -2,29 +2,29 @@
  * API client for Genie backend
  */
 
-import { getAuthToken, setAuthToken as saveAuthToken, clearAuthToken } from './auth';
 import { DEV_UTILS } from './dev-utils';
 
 // Determine API base URL
-// In production on Vercel, use /api (relative path) to route through serverless function
-// In development, use NEXT_PUBLIC_API_URL or default to localhost
+// Note: Backend routes are directly at /projects/*, /auth/*, etc. (no /api prefix)
+// In production: /api goes through Vercel serverless wrapper which removes /api prefix
+// In development: Call backend directly at http://localhost:4000
 const getApiBaseUrl = () => {
-  // If explicitly set, use it
+  // In production, use relative /api path (goes through Vercel serverless wrapper)
+  if (process.env.NODE_ENV === 'production') {
+    return '/api';
+  }
+  
+  // In development, use NEXT_PUBLIC_API_URL if set, otherwise default
   if (process.env.NEXT_PUBLIC_API_URL) {
     const url = process.env.NEXT_PUBLIC_API_URL;
-    // If it's a full URL and doesn't end with /api, append it
-    if (url.startsWith('http') && !url.endsWith('/api')) {
-      return `${url}/api`;
+    // Remove /api suffix if present, backend doesn't use it
+    if (url.endsWith('/api')) {
+      return url.slice(0, -4); // Remove '/api'
     }
     return url;
   }
   
-  // In browser (client-side), use relative /api path
-  if (typeof window !== 'undefined') {
-    return '/api';
-  }
-  
-  // Server-side default
+  // Default to localhost:4000 in development (backend runs on port 4000)
   return 'http://localhost:4000';
 };
 
@@ -75,17 +75,15 @@ export interface DownloadInfo {
 
 class ApiClient {
   private baseUrl: string;
+  private getToken: (() => Promise<string | null>) | null = null;
 
   constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
   }
 
-  setToken(token: string) {
-    saveAuthToken(token);
-  }
-
-  clearToken() {
-    clearAuthToken();
+  // Set token getter function (for NextAuth session)
+  setTokenGetter(getter: () => Promise<string | null>) {
+    this.getToken = getter;
   }
 
   private async request<T>(
@@ -96,7 +94,12 @@ class ApiClient {
       'Content-Type': 'application/json',
     };
 
-    const token = getAuthToken();
+    // Get token from NextAuth session if available
+    let token: string | null = null;
+    if (this.getToken) {
+      token = await this.getToken();
+    }
+
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }
@@ -185,7 +188,11 @@ class ApiClient {
   }
 
   async downloadProject(projectId: string): Promise<Blob> {
-    const token = getAuthToken();
+    let token: string | null = null;
+    if (this.getToken) {
+      token = await this.getToken();
+    }
+
     const headers: Record<string, string> = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -215,25 +222,6 @@ class ApiClient {
     };
   }> {
     return this.request(`/projects/${projectId}/progress`);
-  }
-
-  // Authentication
-  async login(email: string, password: string): Promise<{ token: string }> {
-    const result = await this.request<{ token: string }>('/auth/login', {
-      method: 'POST',
-      body: JSON.stringify({ email, password }),
-    });
-    this.setToken(result.token);
-    return result;
-  }
-
-  async register(email: string, password: string, name?: string): Promise<{ token: string }> {
-    const result = await this.request<{ token: string }>('/auth/signup', {
-      method: 'POST',
-      body: JSON.stringify({ email, password, name }),
-    });
-    this.setToken(result.token);
-    return result;
   }
 
   // Polar.sh Payments
