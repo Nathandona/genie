@@ -467,32 +467,32 @@ function ResultsPageContent() {
                 </div>
                 {pages.length > 1 && (
                   <div className="flex items-center gap-2">
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        if (pages.length === 0) return
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      if (pages.length === 0) return
                         setCurrentComparison((prev) => (prev - 1 + pages.length) % pages.length)
-                      }}
-                      disabled={pages.length === 0}
-                    >
-                      <ChevronLeft className="h-4 w-4" />
-                    </Button>
+                    }}
+                    disabled={pages.length === 0}
+                  >
+                    <ChevronLeft className="h-4 w-4" />
+                  </Button>
                     <Badge variant="outline" className="min-w-[80px] text-center">
                       {pages.length > 0 ? `${currentComparison + 1} / ${pages.length}` : "0 / 0"}
                     </Badge>
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      onClick={() => {
-                        if (pages.length === 0) return
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    onClick={() => {
+                      if (pages.length === 0) return
                         setCurrentComparison((prev) => (prev + 1) % pages.length)
-                      }}
-                      disabled={pages.length === 0}
-                    >
-                      <ChevronRight className="h-4 w-4" />
-                    </Button>
-                  </div>
+                    }}
+                    disabled={pages.length === 0}
+                  >
+                    <ChevronRight className="h-4 w-4" />
+                  </Button>
+                </div>
                 )}
               </div>
             </CardHeader>
@@ -513,12 +513,12 @@ function ResultsPageContent() {
                           </Link>
                         </Button>
                       )}
-                      <Button variant="ghost" size="sm" asChild>
+                    <Button variant="ghost" size="sm" asChild>
                         <Link href={pages[currentComparison].url} target="_blank" rel="noopener noreferrer">
-                          <Eye className="mr-2 h-4 w-4" />
+                        <Eye className="mr-2 h-4 w-4" />
                           View Generated
-                        </Link>
-                      </Button>
+                      </Link>
+                    </Button>
                     </div>
                   </div>
 
@@ -530,17 +530,17 @@ function ResultsPageContent() {
                       </div>
                       <div className="relative aspect-video overflow-hidden rounded-lg border bg-background shadow-sm">
                         {pages[currentComparison].url ? (
-                          <iframe
+                      <iframe
                             key={`original-${pages[currentComparison].id}`}
                             title={`Original: ${pages[currentComparison].name}`}
                             src={pages[currentComparison].url}
-                            className="h-full w-full border-0"
+                        className="h-full w-full border-0"
                             sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
                             allow="fullscreen"
                             loading="lazy"
-                          />
-                        ) : (
-                          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-muted-foreground">
+                      />
+                    ) : (
+                      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-muted-foreground">
                             <div className="text-4xl">{pages[currentComparison].previewIcon}</div>
                             <div className="text-lg font-semibold">Original preview not available</div>
                             {pages[currentComparison].metaDescription && (
@@ -629,9 +629,9 @@ function ResultsPageContent() {
                               <p className="text-xs text-muted-foreground max-w-md">
                                 {pages[currentComparison].metaDescription}
                               </p>
-                            )}
-                          </div>
                         )}
+                      </div>
+                    )}
                       </div>
                       <p className="text-xs text-muted-foreground">
                         <strong>Status:</strong> {previewUrl ? "Preview running" : "Ready for deployment"}
@@ -643,22 +643,22 @@ function ResultsPageContent() {
                     <div className="mt-6">
                       <div className="mb-2 text-sm font-medium text-muted-foreground">All Pages</div>
                       <div className="grid gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-                        {pages.map((page, index) => (
-                          <button
-                            key={page.id}
+                    {pages.map((page, index) => (
+                      <button
+                        key={page.id}
                             onClick={() => setCurrentComparison(index)}
                             className={`rounded-lg border p-2 text-left transition-all ${
                               index === currentComparison
                                 ? "border-primary bg-primary/10 shadow-sm"
-                                : "border-muted/60 hover:border-primary/40"
-                            }`}
-                          >
+                            : "border-muted/60 hover:border-primary/40"
+                        }`}
+                      >
                             <div className="mb-1 text-xl">{page.previewIcon}</div>
-                            <div className="truncate text-xs font-medium">{page.name}</div>
+                        <div className="truncate text-xs font-medium">{page.name}</div>
                             <div className="truncate text-[10px] text-muted-foreground">{page.path}</div>
-                          </button>
-                        ))}
-                      </div>
+                      </button>
+                    ))}
+                  </div>
                     </div>
                   )}
                 </>

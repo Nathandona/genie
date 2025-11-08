@@ -120,10 +120,10 @@ export default function DashboardPage() {
 
       // Show success notification
       if (info) {
-        setNotification({ 
-          type: 'success', 
-          message: `Download started! ${info.fileCount} files (${(info.totalSize / 1024 / 1024).toFixed(2)} MB)` 
-        })
+      setNotification({ 
+        type: 'success', 
+        message: `Download started! ${info.fileCount} files (${(info.totalSize / 1024 / 1024).toFixed(2)} MB)` 
+      })
       } else {
         setNotification({ 
           type: 'success', 

@@ -5,7 +5,8 @@
 import { getAuthToken, setAuthToken as saveAuthToken, clearAuthToken } from './auth';
 import { DEV_UTILS } from './dev-utils';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 
+  (typeof window !== 'undefined' ? '/api' : 'http://localhost:4000');
 
 export interface Project {
   id: string;
