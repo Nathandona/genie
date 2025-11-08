@@ -54,11 +54,17 @@ export function getInternalApiBaseUrl(): string {
   if (process.env.NODE_ENV === 'production') {
     // Use API_INTERNAL_URL if explicitly set (for separate API deployments)
     if (process.env.API_INTERNAL_URL) {
+      console.log('[getInternalApiBaseUrl] Using API_INTERNAL_URL:', process.env.API_INTERNAL_URL);
       return process.env.API_INTERNAL_URL;
     }
     
     // Default: use /api/v1 path (routes to Fastify via vercel.json, avoids Next.js API routes)
-    return '/api/v1';
+    const baseUrl = '/api/v1';
+    console.log('[getInternalApiBaseUrl] Production - returning:', baseUrl, {
+      NODE_ENV: process.env.NODE_ENV,
+      hasAPI_INTERNAL_URL: !!process.env.API_INTERNAL_URL,
+    });
+    return baseUrl;
   }
 
   // In development, use NEXT_PUBLIC_API_URL if set, otherwise default to localhost:4000

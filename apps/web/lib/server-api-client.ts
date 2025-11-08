@@ -83,13 +83,14 @@ async function request<T>(
   // Get the API URL - use serverSide flag for server-side requests
   const url = getApiUrl(endpoint, { serverSide: true });
 
-  // Log request in development
-  if (process.env.NODE_ENV === 'development') {
-    console.log(`[Server API Client] ${method} ${url}`, {
-      hasBody: !!body,
-      hasToken: !!token,
-    });
-  }
+  // Log request URL for debugging (especially in production)
+  console.log(`[Server API Client] ${method} ${url}`, {
+    endpoint,
+    serverSide: true,
+    hasBody: !!body,
+    hasToken: !!token,
+    nodeEnv: process.env.NODE_ENV,
+  });
 
   // Make the request
   const response = await fetch(url, {
