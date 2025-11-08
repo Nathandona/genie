@@ -5,7 +5,7 @@ import { getToken } from 'next-auth/jwt'
 // Paths that require authentication
 const protectedPaths = ['/dashboard', '/create', '/progress', '/results']
 
-export async function middleware(request: NextRequest) {
+export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
   // Skip NextAuth API routes
