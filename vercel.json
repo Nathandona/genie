@@ -1,8 +1,5 @@
 {
   "version": 2,
-  "buildCommand": "pnpm turbo run build",
-  "installCommand": "pnpm install",
-  "framework": "nextjs",
   "rewrites": [
     {
       "source": "/api/:path*",
@@ -14,9 +11,6 @@
       "memory": 1024,
       "maxDuration": 300
     }
-  },
-  "env": {
-    "NODE_ENV": "production"
   }
 }
 
