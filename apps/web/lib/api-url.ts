@@ -93,15 +93,28 @@ export function getApiUrl(endpoint: string, options?: { serverSide?: boolean }):
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   let url = `${baseUrl}${normalizedEndpoint}`;
   
-  // In production, for server-side requests, keep relative URLs
-  // Vercel's internal routing will handle /api/v1/* rewrites correctly
-  // Making it absolute would cause it to go through the edge network as an external request
-  // which might not apply rewrite rules correctly
-  // Note: fetch() in Next.js server-side can handle relative URLs when calling the same origin
+  // In production, for server-side requests, we need an absolute URL for fetch()
+  // But we want Vercel to route it internally. We'll use the Vercel URL or construct
+  // from environment variables, ensuring it goes through Vercel's internal routing
   if (process.env.NODE_ENV === 'production' && url.startsWith('/') && options?.serverSide) {
-    // Keep relative URL - Vercel will handle routing internally
-    // This ensures rewrite rules in vercel.json are applied correctly
-    return url;
+    // Construct absolute URL using Vercel's internal routing
+    // Use VERCEL_URL if available (set automatically by Vercel), otherwise use NEXT_PUBLIC_APP_URL
+    let host: string;
+    
+    if (process.env.VERCEL_URL) {
+      // VERCEL_URL is set by Vercel and represents the current deployment
+      // Using it ensures requests stay within Vercel's internal network
+      host = `https://${process.env.VERCEL_URL}`;
+    } else if (process.env.NEXT_PUBLIC_APP_URL) {
+      // Fallback to NEXT_PUBLIC_APP_URL if VERCEL_URL is not available
+      host = process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
+    } else {
+      // Last resort - this should not happen in production
+      console.warn('[getApiUrl] Neither VERCEL_URL nor NEXT_PUBLIC_APP_URL is set');
+      throw new Error('VERCEL_URL or NEXT_PUBLIC_APP_URL must be set for server-side API calls in production');
+    }
+    
+    url = `${host}${url}`;
   }
   
   return url;
