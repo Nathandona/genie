@@ -16,6 +16,10 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(
+    process.env.NEXT_PUBLIC_APP_URL || 
+    (process.env.VERCEL_URL ? `https://${process.env.VERCEL_URL}` : 'http://localhost:3000')
+  ),
   title: "Genie - Transform Websites into Modern Next.js",
   description: "Convert any website into a blazing-fast Next.js application in minutes with AI-powered code generation.",
   icons: {

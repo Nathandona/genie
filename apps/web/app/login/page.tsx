@@ -1,6 +1,6 @@
 'use client'
 
-import { FormEvent, useState, useEffect } from "react"
+import { FormEvent, useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
 import { signIn } from "next-auth/react"
 import { Button } from "@/components/ui/button"
@@ -8,7 +8,7 @@ import { Input } from "@/components/ui/input"
 
 type AuthMode = "login" | "signup"
 
-export default function LoginPage() {
+function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
   const [mode, setMode] = useState<AuthMode>("login")
@@ -215,5 +215,19 @@ export default function LoginPage() {
         </p>
       </div>
     </main>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={
+      <main className="flex min-h-[calc(100vh-8rem)] items-center justify-center">
+        <div className="text-center">
+          <p className="text-muted-foreground">Loading...</p>
+        </div>
+      </main>
+    }>
+      <LoginForm />
+    </Suspense>
   )
 }
