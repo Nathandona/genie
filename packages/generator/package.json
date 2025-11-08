@@ -16,9 +16,12 @@
   "scripts": {
     "build": "tsup src/index.ts --format esm,cjs --dts",
     "dev": "tsup src/index.ts --format esm,cjs --dts --watch",
-    "lint": "eslint src --ext .ts"
+    "lint": "eslint src --ext .ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
   },
   "dependencies": {
+    "@genie/analyzer": "workspace:^0.1.0",
     "@genie/shared": "workspace:^0.1.0",
     "fs-extra": "^11.2.0",
     "mustache": "^4.2.0",
@@ -30,6 +33,7 @@
     "@types/mustache": "^4.2.6",
     "eslint": "^9.9.0",
     "tsup": "^8.1.0",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
   }
 }

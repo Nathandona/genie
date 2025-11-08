@@ -9,16 +9,28 @@
   "scripts": {
     "dev": "turbo dev",
     "build": "turbo build",
+    "build:test": "turbo build",
+    "build:check": "pnpm build:test && echo '✅ All packages built successfully'",
     "lint": "turbo lint",
-    "test": "turbo test"
+    "test": "turbo test",
+    "test:unit": "vitest run",
+    "test:unit:watch": "vitest",
+    "test:unit:ui": "vitest --ui",
+    "test:browser": "playwright test",
+    "test:browser:ui": "playwright test --ui",
+    "test:browser:headed": "playwright test --headed",
+    "test:all": "pnpm build:check && pnpm test:unit && pnpm test:browser"
   },
   "devDependencies": {
+    "@playwright/test": "^1.48.0",
     "@types/node": "^20.14.9",
     "@typescript-eslint/eslint-plugin": "^8.5.0",
     "@typescript-eslint/parser": "^8.5.0",
+    "@vercel/node": "^5.5.5",
     "eslint": "^9.9.0",
     "prettier": "^3.3.3",
     "turbo": "^2.0.4",
-    "typescript": "^5.5.4"
+    "typescript": "^5.5.4",
+    "vitest": "^2.1.0"
   }
 }

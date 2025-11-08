@@ -5,7 +5,7 @@
 import { getAuthToken, setAuthToken as saveAuthToken, clearAuthToken } from './auth';
 import { DEV_UTILS } from './dev-utils';
 
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000';
 
 export interface Project {
   id: string;
@@ -28,6 +28,7 @@ export interface Page {
   url: string;
   title: string | null;
   metaDescription: string | null;
+  htmlSnapshot: string | null;
   createdAt: string;
 }
 
@@ -96,7 +97,29 @@ class ApiClient {
       throw new Error(error.message || `Request failed with status ${response.status}`);
     }
 
-    return response.json();
+    // Handle 204 No Content (empty response body)
+    if (response.status === 204) {
+      return undefined as T;
+    }
+
+    // Check if response has content before parsing JSON
+    const contentType = response.headers.get('content-type');
+    if (!contentType || !contentType.includes('application/json')) {
+      return undefined as T;
+    }
+
+    // Try to parse JSON, but handle empty responses gracefully
+    const text = await response.text();
+    if (!text || text.trim().length === 0) {
+      return undefined as T;
+    }
+
+    try {
+      return JSON.parse(text) as T;
+    } catch (err) {
+      // If JSON parsing fails, return undefined for void responses
+      return undefined as T;
+    }
   }
 
   // Projects
@@ -145,37 +168,30 @@ class ApiClient {
       headers['Authorization'] = `Bearer ${token}`;
     }
 
-    const response = await fetch(`${this.baseUrl}/projects/${projectId}/download`, {
+    // Use the /file endpoint to get the actual ZIP file
+    const response = await fetch(`${this.baseUrl}/projects/${projectId}/download/file`, {
       headers,
     });
 
     if (!response.ok) {
-      throw new Error('Download failed');
+      const error = await response.json().catch(() => ({ message: 'Download failed' }));
+      throw new Error(error.message || 'Download failed');
     }
 
     return response.blob();
   }
 
-  // Progress tracking (polls project status)
+  // Progress tracking (polls project status with CrawlJob data)
   async getProjectStatus(projectId: string): Promise<{
     project: Project;
+    crawlJob: CrawlJob | null;
     stats: {
       pagesDiscovered: number;
       componentsCreated: number;
       assetsOptimized: number;
     };
   }> {
-    const project = await this.getProject(projectId);
-    const pages = await this.getProjectPages(projectId).catch(() => []);
-    
-    return {
-      project,
-      stats: {
-        pagesDiscovered: pages.length,
-        componentsCreated: pages.length * 3, // Estimate
-        assetsOptimized: pages.length * 5, // Estimate
-      },
-    };
+    return this.request(`/projects/${projectId}/progress`);
   }
 
   // Authentication
@@ -225,6 +241,23 @@ class ApiClient {
   async getPolarPortalUrl(): Promise<string> {
     const response = await this.request<{ url: string }>('/polar/portal');
     return response.url;
+  }
+
+  // Preview
+  async startPreview(projectId: string): Promise<{ url: string; port: number }> {
+    return this.request<{ url: string; port: number }>(`/projects/${projectId}/preview/start`, {
+      method: 'POST',
+    });
+  }
+
+  async stopPreview(projectId: string): Promise<{ message: string }> {
+    return this.request<{ message: string }>(`/projects/${projectId}/preview/stop`, {
+      method: 'POST',
+    });
+  }
+
+  async getPreviewStatus(projectId: string): Promise<{ url: string; port: number; startedAt: string } | null> {
+    return this.request<{ url: string; port: number; startedAt: string } | null>(`/projects/${projectId}/preview`);
   }
 }
 

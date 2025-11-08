@@ -61,8 +61,8 @@ export default function LoginPage() {
   }
 
   return (
-    <main className="flex min-h-[calc(100vh-8rem)] items-center justify-center bg-muted/20 px-4 py-16">
-      <div className="w-full max-w-md rounded-2xl border border-border bg-background/80 p-8 shadow-lg backdrop-blur">
+    <main className="flex min-h-[calc(100vh-8rem)] items-center justify-center bg-gradient-to-b from-background via-background to-muted/20 px-4 py-16">
+      <div className="w-full max-w-md rounded-2xl border border-border/50 bg-background/80 p-8 shadow-xl backdrop-blur-sm transition-shadow hover:shadow-2xl">
         <div className="mb-6 text-center">
           <h1 className="text-2xl font-semibold">{mode === "login" ? "Welcome back" : "Create your account"}</h1>
           <p className="mt-2 text-sm text-muted-foreground">

@@ -10,3 +10,9 @@ coverage
 .env.local
 .env.*.local
 templates/**/generated
+# Test outputs
+playwright-report/
+test-results/
+playwright/.cache/
+.vitest/
+*.log

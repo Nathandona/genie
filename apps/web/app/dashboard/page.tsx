@@ -97,27 +97,55 @@ export default function DashboardPage() {
   const handleDownload = async (projectId: string, projectName: string) => {
     try {
       setDownloadingId(projectId)
-      const info = await apiClient.getDownloadInfo(projectId)
+      
+      // Try to get download info first (optional, for showing file count/size)
+      let info: { fileCount: number; totalSize: number } | null = null
+      try {
+        info = await apiClient.getDownloadInfo(projectId)
+      } catch (err) {
+        // If download info is not available, still try to download
+        console.warn("Download info not available, attempting download anyway:", err)
+      }
 
-      setNotification({ 
-        type: 'success', 
-        message: `Download ready! ${info.fileCount} files (${(info.totalSize / 1024 / 1024).toFixed(2)} MB)` 
-      })
+      // Download the actual ZIP file
+      const blob = await apiClient.downloadProject(projectId)
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `${projectName}.zip`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+
+      // Show success notification
+      if (info) {
+        setNotification({ 
+          type: 'success', 
+          message: `Download started! ${info.fileCount} files (${(info.totalSize / 1024 / 1024).toFixed(2)} MB)` 
+        })
+      } else {
+        setNotification({ 
+          type: 'success', 
+          message: 'Download started!' 
+        })
+      }
       setTimeout(() => setNotification(null), 5000)
-
-      // TODO: Implement actual download from S3
-      // const blob = await apiClient.downloadProject(projectId)
-      // const url = window.URL.createObjectURL(blob)
-      // const a = document.createElement('a')
-      // a.href = url
-      // a.download = `${projectName}.zip`
-      // document.body.appendChild(a)
-      // a.click()
-      // window.URL.revokeObjectURL(url)
-      // document.body.removeChild(a)
     } catch (err) {
       console.error('Failed to download project:', err)
-      setNotification({ type: 'error', message: 'Failed to download project. Please try again.' })
+      const errorMessage = err instanceof Error ? err.message : 'Failed to download project'
+      let userMessage = errorMessage
+      
+      if (errorMessage.includes("404") || errorMessage.includes("not found")) {
+        userMessage = "Download is not ready yet. Please wait for the project generation to complete."
+      } else if (errorMessage.includes("ZIP file not found")) {
+        userMessage = "The project file has been cleaned up. Please regenerate the project."
+      }
+      
+      setNotification({ 
+        type: 'error', 
+        message: userMessage
+      })
       setTimeout(() => setNotification(null), 5000)
     } finally {
       setDownloadingId(null)
@@ -138,7 +166,7 @@ export default function DashboardPage() {
   })
 
   return (
-    <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-12">
+    <div className="min-h-screen bg-gradient-to-b from-background via-background to-muted/20 py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         {/* Notification */}
         {notification && (

@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button"
-import { Plus } from "lucide-react"
+import { Plus, Sparkles } from "lucide-react"
 import Link from "next/link"
 
 export function DashboardHeader() {
@@ -7,7 +7,7 @@ export function DashboardHeader() {
     <div className="mb-8">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="mb-2 text-3xl font-bold tracking-tight sm:text-4xl">
+          <h1 className="mb-2 bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
             My Projects
           </h1>
           <p className="text-muted-foreground">
@@ -15,8 +15,8 @@ export function DashboardHeader() {
           </p>
         </div>
         <Link href="/create">
-          <Button size="lg">
-            <Plus className="mr-2 h-5 w-5" />
+          <Button size="lg" className="gap-2 shadow-sm transition-all hover:scale-105 hover:shadow-md">
+            <Plus className="h-5 w-5" />
             New Project
           </Button>
         </Link>

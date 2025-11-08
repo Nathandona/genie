@@ -50,8 +50,8 @@ const isEntryPoint = () => {
 };
 
 if (isEntryPoint()) {
-  const port = env.API_PORT;
-  const host = env.API_HOST;
+  const port = env.API_PORT ?? 4000;
+  const host = env.API_HOST ?? '0.0.0.0';
 
   createServer()
     .then(app => app.listen({ port, host }))

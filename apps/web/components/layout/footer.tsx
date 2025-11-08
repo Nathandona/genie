@@ -1,15 +1,23 @@
-import { Github, Twitter, Linkedin } from "lucide-react"
+import { Github, Twitter, Linkedin, Sparkles } from "lucide-react"
 import Link from "next/link"
 
 export function Footer() {
   return (
-    <footer className="border-t bg-muted/30">
+    <footer className="border-t border-border/40 bg-muted/30 backdrop-blur-sm">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-12">
         <div className="grid gap-8 md:grid-cols-2 lg:grid-cols-4">
           {/* Brand */}
           <div>
-            <Link href="/" className="mb-4 flex items-center gap-2">
-              <span className="text-xl font-bold">Genie</span>
+            <Link href="/" className="group mb-4 flex items-center gap-2 transition-opacity hover:opacity-80">
+              <div className="relative">
+                <div className="absolute inset-0 rounded-lg bg-gradient-to-br from-primary/20 to-primary/5 blur-sm opacity-0 transition-opacity group-hover:opacity-100" />
+                <div className="relative flex h-8 w-8 items-center justify-center rounded-lg bg-gradient-to-br from-primary to-primary/70">
+                  <Sparkles className="h-4 w-4 text-primary-foreground" />
+                </div>
+              </div>
+              <span className="bg-gradient-to-r from-foreground to-foreground/70 bg-clip-text text-xl font-bold tracking-tight text-transparent">
+                Genie
+              </span>
             </Link>
             <p className="text-sm text-muted-foreground">
               Transform any website into modern Next.js applications with AI-powered code generation.
@@ -19,7 +27,7 @@ export function Footer() {
                 href="https://github.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border bg-background transition-colors hover:bg-muted"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/50 bg-background transition-all hover:scale-110 hover:bg-muted hover:border-primary/20"
               >
                 <Github className="h-4 w-4" />
               </a>
@@ -27,7 +35,7 @@ export function Footer() {
                 href="https://twitter.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border bg-background transition-colors hover:bg-muted"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/50 bg-background transition-all hover:scale-110 hover:bg-muted hover:border-primary/20"
               >
                 <Twitter className="h-4 w-4" />
               </a>
@@ -35,7 +43,7 @@ export function Footer() {
                 href="https://linkedin.com"
                 target="_blank"
                 rel="noopener noreferrer"
-                className="flex h-9 w-9 items-center justify-center rounded-lg border bg-background transition-colors hover:bg-muted"
+                className="flex h-9 w-9 items-center justify-center rounded-lg border border-border/50 bg-background transition-all hover:scale-110 hover:bg-muted hover:border-primary/20"
               >
                 <Linkedin className="h-4 w-4" />
               </a>
@@ -124,7 +132,7 @@ export function Footer() {
           </div>
         </div>
 
-        <div className="mt-12 border-t pt-8 text-center text-sm text-muted-foreground">
+        <div className="mt-12 border-t border-border/40 pt-8 text-center text-sm text-muted-foreground">
           <p>© {new Date().getFullYear()} Genie. All rights reserved.</p>
         </div>
       </div>
