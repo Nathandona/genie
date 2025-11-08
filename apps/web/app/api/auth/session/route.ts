@@ -12,13 +12,29 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    const url = getApiUrl('/auth/session');
+    // In production, call the backend API directly through the serverless wrapper
+    // Use /api/v1 to ensure it goes to the serverless function, not Next.js route
+    let url: string;
+    let headers: Record<string, string> = {
+      'Authorization': `Bearer ${token}`,
+      'Content-Type': 'application/json',
+    };
+    
+    if (process.env.NODE_ENV === 'production') {
+      const host = process.env.NEXT_PUBLIC_APP_URL 
+        ? process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '')
+        : process.env.VERCEL_URL 
+        ? `https://${process.env.VERCEL_URL}`
+        : 'https://genie-teal.vercel.app';
+      url = `${host}/api/v1/auth/session`;
+      headers['x-internal-request'] = 'true';
+    } else {
+      url = getApiUrl('/auth/session');
+    }
+
     const response = await fetch(url, {
       method: 'GET',
-      headers: {
-        'Authorization': `Bearer ${token}`,
-        'Content-Type': 'application/json',
-      },
+      headers,
     });
 
     if (!response.ok) {

@@ -7,7 +7,14 @@
     },
     {
       "source": "/api/:path*",
-      "destination": "/api"
+      "destination": "/api",
+      "has": [
+        {
+          "type": "header",
+          "key": "x-internal-request",
+          "value": "true"
+        }
+      ]
     }
   ],
   "functions": {
