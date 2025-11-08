@@ -10,9 +10,9 @@
     "lint": "eslint src --ext .ts",
     "test": "vitest run",
     "test:watch": "vitest",
-    "prisma:generate": "prisma generate",
-    "prisma:migrate": "prisma migrate dev",
-    "prisma:format": "prisma format"
+    "prisma:generate": "npx prisma generate",
+    "prisma:migrate": "npx prisma migrate dev",
+    "prisma:format": "npx prisma format"
   },
   "dependencies": {
     "@fastify/cors": "^9.0.1",
@@ -35,6 +35,7 @@
     "ioredis": "^5.8.2",
     "pino": "^9.4.0",
     "pino-pretty": "^11.2.1",
+    "prisma": "^5.20.0",
     "yauzl": "^3.2.0",
     "zod": "^3.23.8"
   },
@@ -42,7 +43,6 @@
     "@types/archiver": "^7.0.0",
     "@types/yauzl": "^2.10.3",
     "eslint": "^9.9.0",
-    "prisma": "^5.20.0",
     "tsup": "^8.1.0",
     "tsx": "^4.16.0",
     "typescript": "^5.5.4",
