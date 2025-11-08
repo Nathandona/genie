@@ -1,6 +1,6 @@
 {
   "version": 2,
-  "buildCommand": "pnpm install && pnpm --filter @genie/shared build && pnpm --filter @genie/crawler build && pnpm --filter @genie/analyzer build && pnpm --filter @genie/generator build && pnpm --filter @genie/ai-services build && cd apps/api && pnpm prisma:generate && cd ../web && pnpm build",
+  "buildCommand": "pnpm vercel-build",
   "installCommand": "pnpm install",
   "framework": "nextjs",
   "outputDirectory": "apps/web/.next",
