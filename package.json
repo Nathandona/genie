@@ -11,7 +11,7 @@
     "build": "turbo build",
     "build:test": "turbo build",
     "build:check": "pnpm build:test && echo '✅ All packages built successfully'",
-    "vercel-build": "pnpm build && cd apps/api && pnpm prisma:generate && cd ../web && pnpm build",
+    "vercel-build": "turbo run build",
     "lint": "turbo lint",
     "test": "turbo test",
     "test:unit": "vitest run",
