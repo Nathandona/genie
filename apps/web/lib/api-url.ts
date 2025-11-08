@@ -43,22 +43,22 @@ export function getApiBaseUrl(): string {
  * Get the internal API base URL for server-side requests
  * 
  * This is used when Next.js API routes need to call the Fastify backend.
- * In production on Vercel, /api/* routes go to the Fastify serverless function,
- * so we use relative /api paths which will be resolved to absolute URLs.
+ * In production on Vercel, we use /api/v1/* to route to Fastify (avoiding conflicts
+ * with Next.js API routes at /api/*).
  * 
  * @returns Internal API base URL
  */
 export function getInternalApiBaseUrl(): string {
-  // In production, use relative /api path (routes to Fastify serverless function)
-  // We'll make it absolute in getApiUrl if needed
+  // In production, use /api/v1 to route to Fastify serverless function
+  // This avoids conflicts with Next.js API routes at /api/*
   if (process.env.NODE_ENV === 'production') {
     // Use API_INTERNAL_URL if explicitly set (for separate API deployments)
     if (process.env.API_INTERNAL_URL) {
       return process.env.API_INTERNAL_URL;
     }
     
-    // Default: use relative /api path (routes to Fastify via vercel.json)
-    return '/api';
+    // Default: use /api/v1 path (routes to Fastify via vercel.json, avoids Next.js API routes)
+    return '/api/v1';
   }
 
   // In development, use NEXT_PUBLIC_API_URL if set, otherwise default to localhost:4000
