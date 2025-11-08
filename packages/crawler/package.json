@@ -23,6 +23,7 @@
   "dependencies": {
     "@genie/shared": "workspace:^0.1.0",
     "@sparticuz/chromium": "^141.0.0",
+    "@types/node": "^20.14.9",
     "cheerio": "^1.0.0",
     "p-queue": "^7.4.1",
     "puppeteer": "^23.3.0",

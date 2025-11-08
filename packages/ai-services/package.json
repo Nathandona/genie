@@ -21,6 +21,7 @@
   "dependencies": {
     "@genie/shared": "workspace:^0.1.0",
   "@anthropic-ai/sdk": "^0.20.0",
+    "@types/node": "^20.14.9",
     "openai": "^4.52.0",
     "tsup": "^8.1.0",
     "zod": "^3.23.8"

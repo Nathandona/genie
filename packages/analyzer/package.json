@@ -20,6 +20,7 @@
   },
   "dependencies": {
     "@genie/shared": "workspace:^0.1.0",
+    "@types/node": "^20.14.9",
     "cheerio": "^1.0.0",
     "colord": "^2.9.3",
     "postcss": "^8.4.41",

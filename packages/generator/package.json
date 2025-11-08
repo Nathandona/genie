@@ -23,6 +23,7 @@
   "dependencies": {
     "@genie/analyzer": "workspace:^0.1.0",
     "@genie/shared": "workspace:^0.1.0",
+    "@types/node": "^20.14.9",
     "fs-extra": "^11.2.0",
     "mustache": "^4.2.0",
     "prettier": "^3.3.3",
