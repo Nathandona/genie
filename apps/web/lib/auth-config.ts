@@ -36,7 +36,8 @@ export const authOptions: NextAuthOptions = {
           // In development, this calls backend directly at localhost:4000
           const url = getApiUrl(endpoint)
           
-          if (process.env.NODE_ENV === 'development') {
+          // Log URL in both dev and prod (prod logging controlled by NEXT_PUBLIC_DEBUG)
+          if (process.env.NODE_ENV === 'development' || process.env.NEXT_PUBLIC_DEBUG === 'true') {
             console.log(`[NextAuth] Calling ${isSignup ? 'signup' : 'login'} at:`, url)
           }
 
@@ -50,7 +51,19 @@ export const authOptions: NextAuthOptions = {
 
           if (!response.ok) {
             const errorData = await response.json().catch(() => ({ message: "Authentication failed" }))
-            throw new Error(errorData.message || "Authentication failed")
+            const errorMessage = errorData.message || `Authentication failed with status ${response.status}`
+            
+            // Log error details in production if debug is enabled
+            if (process.env.NEXT_PUBLIC_DEBUG === 'true') {
+              console.error(`[NextAuth] Auth error:`, {
+                status: response.status,
+                statusText: response.statusText,
+                url,
+                error: errorMessage
+              })
+            }
+            
+            throw new Error(errorMessage)
           }
 
           const data = await response.json()

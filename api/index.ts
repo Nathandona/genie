@@ -19,10 +19,15 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const url = new URL(req.url || '/', `https://${req.headers.host || 'localhost'}`);
     let path = url.pathname;
     
-    // Remove /api prefix if present (Vercel rewrites add it)
-    if (path.startsWith('/api/')) {
+    // Handle /api/v1/* routes (used to avoid NextAuth conflicts)
+    // Strip both /api and /v1 prefixes before routing to Fastify
+    if (path.startsWith('/api/v1/')) {
+      path = path.replace('/api/v1', '');
+    } else if (path.startsWith('/api/')) {
+      // Regular /api/* routes - remove /api prefix
       path = path.replace('/api', '');
     }
+    
     if (!path.startsWith('/')) {
       path = '/' + path;
     }
