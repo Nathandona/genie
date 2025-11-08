@@ -3,7 +3,6 @@
   "buildCommand": "pnpm turbo run build",
   "installCommand": "pnpm install",
   "framework": "nextjs",
-  "outputDirectory": "apps/web/.next",
   "rewrites": [
     {
       "source": "/api/:path*",
