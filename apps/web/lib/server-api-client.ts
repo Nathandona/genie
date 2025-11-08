@@ -80,6 +80,12 @@ async function request<T>(
     requestHeaders['Authorization'] = `Bearer ${token}`;
   }
 
+  // Add internal request header for Vercel routing (if using /api/* instead of /api/v1/*)
+  // This helps Vercel route to the serverless function instead of Next.js API routes
+  if (process.env.NODE_ENV === 'production') {
+    requestHeaders['x-internal-request'] = 'true';
+  }
+
   // Get the API URL - use serverSide flag for server-side requests
   const url = getApiUrl(endpoint, { serverSide: true });
 

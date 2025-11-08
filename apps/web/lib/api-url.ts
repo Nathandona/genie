@@ -93,25 +93,15 @@ export function getApiUrl(endpoint: string, options?: { serverSide?: boolean }):
   const normalizedEndpoint = endpoint.startsWith('/') ? endpoint : `/${endpoint}`;
   let url = `${baseUrl}${normalizedEndpoint}`;
   
-  // In production, if we're server-side and the URL is relative, make it absolute
-  // This is needed for fetch() calls from server-side API routes
+  // In production, for server-side requests, keep relative URLs
+  // Vercel's internal routing will handle /api/v1/* rewrites correctly
+  // Making it absolute would cause it to go through the edge network as an external request
+  // which might not apply rewrite rules correctly
+  // Note: fetch() in Next.js server-side can handle relative URLs when calling the same origin
   if (process.env.NODE_ENV === 'production' && url.startsWith('/') && options?.serverSide) {
-    // Construct absolute URL - prioritize NEXT_PUBLIC_APP_URL, then VERCEL_URL
-    let host: string;
-    
-    if (process.env.NEXT_PUBLIC_APP_URL) {
-      // Remove trailing slash if present
-      host = process.env.NEXT_PUBLIC_APP_URL.replace(/\/$/, '');
-    } else if (process.env.VERCEL_URL) {
-      // VERCEL_URL doesn't include protocol, add it
-      host = `https://${process.env.VERCEL_URL}`;
-    } else {
-      // Fallback - log warning but don't throw (allows graceful degradation)
-      console.warn('[getApiUrl] NEXT_PUBLIC_APP_URL or VERCEL_URL not set, using relative URL');
-      return url;
-    }
-    
-    url = `${host}${url}`;
+    // Keep relative URL - Vercel will handle routing internally
+    // This ensures rewrite rules in vercel.json are applied correctly
+    return url;
   }
   
   return url;

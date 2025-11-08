@@ -15,8 +15,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     const fastifyApp = await getApp();
     
-    // Extract path from request URL (remove /api prefix if present)
-    const url = new URL(req.url || '/', `https://${req.headers.host || 'localhost'}`);
+    // Extract path from request URL
+    // When Vercel rewrites /api/v1/* to /api, req.url should contain the original path
+    // For example: /api/v1/auth/login -> req.url = /api/v1/auth/login
+    const originalUrl = req.url || '/';
+    const url = new URL(originalUrl, `https://${req.headers.host || 'localhost'}`);
     let path = url.pathname;
     
     // Log incoming request for debugging
@@ -24,6 +27,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       method: req.method,
       path: path,
       url: req.url,
+      query: req.query,
+      headers: {
+        'x-vercel-rewrite': req.headers['x-vercel-rewrite'],
+        'x-incoming-url': req.headers['x-incoming-url'],
+        'x-vercel-original-path': req.headers['x-vercel-original-path'],
+      },
       hasBody: !!req.body
     });
     
@@ -34,6 +43,20 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     } else if (path.startsWith('/api/')) {
       // Regular /api/* routes - remove /api prefix
       path = path.replace('/api', '');
+    } else if (path === '/api' || path === '/api/') {
+      // If path is exactly /api (from rewrite), the original path should be in req.url
+      // But if it's not, check query params or headers
+      const originalPath = (req.query.path as string) || req.headers['x-vercel-original-path'] as string;
+      if (originalPath) {
+        path = originalPath.startsWith('/api/v1/') 
+          ? originalPath.replace('/api/v1', '')
+          : originalPath.startsWith('/api/')
+          ? originalPath.replace('/api', '')
+          : originalPath;
+      } else {
+        // Fallback to root if we can't determine the path
+        path = '/';
+      }
     }
     
     if (!path.startsWith('/')) {
