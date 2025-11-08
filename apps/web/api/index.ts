@@ -1,5 +1,6 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { createServer } from '../../api/src/server.js';
+// Import from the actual API server in apps/api, not from apps/web/api
+import { createServer } from '../../api/dist/server.js';
 
 // Reuse server instance across invocations (cold start optimization)
 let app: Awaited<ReturnType<typeof createServer>> | null = null;

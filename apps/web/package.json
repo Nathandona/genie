@@ -4,12 +4,12 @@
   "private": true,
   "scripts": {
     "dev": "next dev",
-    "build": "next build",
+    "build": "cd ../.. && pnpm turbo run build --filter=web^... && next build",
     "start": "next start",
-    "lint": "eslint",
-    "vercel-build": "cd ../.. && pnpm turbo run build"
+    "lint": "eslint"
   },
   "dependencies": {
+    "@genie/api": "workspace:^0.1.0",
     "@polar-sh/nextjs": "^0.7.0",
     "@polar-sh/sdk": "^0.41.1",
     "@radix-ui/react-alert-dialog": "^1.1.15",
