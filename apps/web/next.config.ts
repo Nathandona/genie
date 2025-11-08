@@ -18,7 +18,9 @@ const nextConfig: NextConfig = {
   // Exclude API directory from Next.js processing
   // API functions are handled separately by Vercel as serverless functions
   pageExtensions: ['tsx', 'ts', 'jsx', 'js'],
-  // Configure webpack to ignore the API directory
+  // Configure Turbopack (Next.js 16 default) - empty config to silence warning
+  turbopack: {},
+  // Configure webpack to ignore the API directory (fallback for non-Turbopack builds)
   webpack: (config, { isServer }) => {
     // Exclude API directory from webpack processing
     config.watchOptions = {
