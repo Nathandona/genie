@@ -1,32 +1,6 @@
 import NextAuth, { type NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
-
-// Import Fastify server to call directly (both are server-side)
-// This avoids the /api/auth/* conflict with NextAuth routes
-let fastifyApp: Awaited<ReturnType<typeof import('../../api/dist/server.js').createServer>> | null = null
-
-async function getFastifyApp() {
-  if (!fastifyApp) {
-    const { createServer } = await import('../../api/dist/server.js')
-    fastifyApp = await createServer()
-  }
-  return fastifyApp
-}
-
-// Get API base URL for HTTP calls (fallback)
-const getApiBaseUrl = () => {
-  // In development, call backend directly
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    const url = process.env.NEXT_PUBLIC_API_URL
-    if (url.endsWith('/api')) {
-      return url.slice(0, -4)
-    }
-    return url
-  }
-  return 'http://localhost:4000'
-}
-
-const API_BASE_URL = getApiBaseUrl()
+import { getApiUrl } from "./api-url"
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -57,54 +31,29 @@ export const authOptions: NextAuthOptions = {
             body.name = credentials.name.trim()
           }
 
-          // Try to call Fastify server directly (server-side)
-          // This avoids HTTP overhead and /api/auth/* routing conflicts
-          let data: any
-          try {
-            const app = await getFastifyApp()
-            const response = await app.inject({
-              method: 'POST',
-              url: endpoint,
-              payload: body,
-              headers: {
-                'content-type': 'application/json',
-              },
-            })
-
-            if (response.statusCode >= 400) {
-              const errorData = JSON.parse(response.payload || '{}')
-              throw new Error(errorData.message || "Authentication failed")
-            }
-
-            data = JSON.parse(response.payload)
-          } catch (directError) {
-            // Fallback to HTTP call if direct call fails
-            if (directError instanceof Error && directError.message.includes("Cannot find module")) {
-              // Fastify server not available, use HTTP fallback
-              const url = `${API_BASE_URL}${endpoint}`
-              
-              if (process.env.NODE_ENV === 'development') {
-                console.log(`[NextAuth] Using HTTP fallback for ${isSignup ? 'signup' : 'login'} at:`, url)
-              }
-
-              const response = await fetch(url, {
-                method: "POST",
-                headers: {
-                  "Content-Type": "application/json",
-                },
-                body: JSON.stringify(body),
-              })
-
-              if (!response.ok) {
-                const errorData = await response.json().catch(() => ({ message: "Authentication failed" }))
-                throw new Error(errorData.message || "Authentication failed")
-              }
-
-              data = await response.json()
-            } else {
-              throw directError
-            }
+          // Use HTTP call to backend API via unified URL utility
+          // In production, this uses /api which goes through Vercel serverless wrapper
+          // In development, this calls backend directly at localhost:4000
+          const url = getApiUrl(endpoint)
+          
+          if (process.env.NODE_ENV === 'development') {
+            console.log(`[NextAuth] Calling ${isSignup ? 'signup' : 'login'} at:`, url)
           }
+
+          const response = await fetch(url, {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(body),
+          })
+
+          if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ message: "Authentication failed" }))
+            throw new Error(errorData.message || "Authentication failed")
+          }
+
+          const data = await response.json()
 
           // Validate response structure
           if (!data.user || !data.token) {

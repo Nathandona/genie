@@ -4,12 +4,14 @@
  * Helpful functions for testing and development
  */
 
+import { getApiBaseUrl } from './api-url';
+
 export const DEV_UTILS = {
   // Check if we're in development mode
   isDev: process.env.NODE_ENV === 'development',
   
-  // Get API URL
-  getApiUrl: () => process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001',
+  // Get API URL using unified utility
+  getApiUrl: () => getApiBaseUrl(),
   
   // Log API calls in development
   logApiCall: (method: string, endpoint: string, data?: any) => {

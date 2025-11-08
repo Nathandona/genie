@@ -3,31 +3,9 @@
  */
 
 import { DEV_UTILS } from './dev-utils';
+import { getApiBaseUrl } from './api-url';
 
-// Determine API base URL
-// Note: Backend routes are directly at /projects/*, /auth/*, etc. (no /api prefix)
-// In production: /api goes through Vercel serverless wrapper which removes /api prefix
-// In development: Call backend directly at http://localhost:4000
-const getApiBaseUrl = () => {
-  // In production, use relative /api path (goes through Vercel serverless wrapper)
-  if (process.env.NODE_ENV === 'production') {
-    return '/api';
-  }
-  
-  // In development, use NEXT_PUBLIC_API_URL if set, otherwise default
-  if (process.env.NEXT_PUBLIC_API_URL) {
-    const url = process.env.NEXT_PUBLIC_API_URL;
-    // Remove /api suffix if present, backend doesn't use it
-    if (url.endsWith('/api')) {
-      return url.slice(0, -4); // Remove '/api'
-    }
-    return url;
-  }
-  
-  // Default to localhost:4000 in development (backend runs on port 4000)
-  return 'http://localhost:4000';
-};
-
+// Use unified API URL utility for consistent behavior across the app
 const API_BASE_URL = getApiBaseUrl();
 
 export interface Project {
