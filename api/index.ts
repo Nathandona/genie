@@ -19,6 +19,14 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const url = new URL(req.url || '/', `https://${req.headers.host || 'localhost'}`);
     let path = url.pathname;
     
+    // Log incoming request for debugging
+    console.log('[Serverless] Incoming request:', {
+      method: req.method,
+      path: path,
+      url: req.url,
+      hasBody: !!req.body
+    });
+    
     // Handle /api/v1/* routes (used to avoid NextAuth conflicts)
     // Strip both /api and /v1 prefixes before routing to Fastify
     if (path.startsWith('/api/v1/')) {
@@ -36,6 +44,12 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const queryString = url.search || '';
     const fullPath = path + queryString;
     
+    console.log('[Serverless] Routing to Fastify:', {
+      originalPath: url.pathname,
+      fastifyPath: fullPath,
+      method: req.method
+    });
+    
     // Prepare headers (remove host and connection headers that Fastify handles)
     const headers: Record<string, string> = {};
     Object.entries(req.headers).forEach(([key, value]) => {
@@ -44,12 +58,22 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     });
 
+    // Handle request body - Vercel may have already parsed JSON, Fastify inject accepts objects
+    let payload: any = req.body;
+    if (payload && typeof payload === 'object' && !Buffer.isBuffer(payload)) {
+      // If it's already an object, Fastify inject can handle it directly
+      // But for JSON content-type, we should stringify it
+      if (headers['content-type']?.includes('application/json')) {
+        payload = JSON.stringify(payload);
+      }
+    }
+
     // Use Fastify's inject method to handle the request
     const response = await fastifyApp.inject({
       method: (req.method || 'GET') as 'GET' | 'POST' | 'PUT' | 'DELETE' | 'PATCH' | 'HEAD' | 'OPTIONS',
       url: fullPath,
       headers,
-      payload: req.body,
+      payload,
       query: req.query as Record<string, string>,
     });
 
