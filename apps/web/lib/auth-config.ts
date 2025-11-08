@@ -1,28 +1,28 @@
 import NextAuth, { type NextAuthOptions } from "next-auth"
 import CredentialsProvider from "next-auth/providers/credentials"
 
-// Get API base URL
-// This runs server-side in NextAuth authorize function
-// Note: Backend routes are directly at /auth/*, not /api/auth/*
-const getApiBaseUrl = () => {
-  // In production, use relative path to go through Vercel serverless function wrapper
-  // The wrapper at apps/web/api/index.ts proxies to the backend
-  if (process.env.NODE_ENV === 'production') {
-    return '/api'
+// Import Fastify server to call directly (both are server-side)
+// This avoids the /api/auth/* conflict with NextAuth routes
+let fastifyApp: Awaited<ReturnType<typeof import('../../api/dist/server.js').createServer>> | null = null
+
+async function getFastifyApp() {
+  if (!fastifyApp) {
+    const { createServer } = await import('../../api/dist/server.js')
+    fastifyApp = await createServer()
   }
-  
-  // In development, call backend directly (no /api prefix needed)
-  // Backend routes are at http://localhost:4000/auth/* directly
+  return fastifyApp
+}
+
+// Get API base URL for HTTP calls (fallback)
+const getApiBaseUrl = () => {
+  // In development, call backend directly
   if (process.env.NEXT_PUBLIC_API_URL) {
     const url = process.env.NEXT_PUBLIC_API_URL
-    // Remove /api suffix if present, backend doesn't use it
     if (url.endsWith('/api')) {
-      return url.slice(0, -4) // Remove '/api'
+      return url.slice(0, -4)
     }
     return url
   }
-  
-  // Default to localhost:4000 in development (backend runs on port 4000)
   return 'http://localhost:4000'
 }
 
@@ -48,7 +48,6 @@ export const authOptions: NextAuthOptions = {
 
         try {
           const endpoint = isSignup ? "/auth/signup" : "/auth/login"
-          const url = `${API_BASE_URL}${endpoint}`
           const body: any = {
             email: normalizedEmail,
             password: credentials.password,
@@ -58,28 +57,54 @@ export const authOptions: NextAuthOptions = {
             body.name = credentials.name.trim()
           }
 
-          // Log in development for debugging
-          if (process.env.NODE_ENV === 'development') {
-            console.log(`[NextAuth] Calling ${isSignup ? 'signup' : 'login'} at:`, url)
+          // Try to call Fastify server directly (server-side)
+          // This avoids HTTP overhead and /api/auth/* routing conflicts
+          let data: any
+          try {
+            const app = await getFastifyApp()
+            const response = await app.inject({
+              method: 'POST',
+              url: endpoint,
+              payload: body,
+              headers: {
+                'content-type': 'application/json',
+              },
+            })
+
+            if (response.statusCode >= 400) {
+              const errorData = JSON.parse(response.payload || '{}')
+              throw new Error(errorData.message || "Authentication failed")
+            }
+
+            data = JSON.parse(response.payload)
+          } catch (directError) {
+            // Fallback to HTTP call if direct call fails
+            if (directError instanceof Error && directError.message.includes("Cannot find module")) {
+              // Fastify server not available, use HTTP fallback
+              const url = `${API_BASE_URL}${endpoint}`
+              
+              if (process.env.NODE_ENV === 'development') {
+                console.log(`[NextAuth] Using HTTP fallback for ${isSignup ? 'signup' : 'login'} at:`, url)
+              }
+
+              const response = await fetch(url, {
+                method: "POST",
+                headers: {
+                  "Content-Type": "application/json",
+                },
+                body: JSON.stringify(body),
+              })
+
+              if (!response.ok) {
+                const errorData = await response.json().catch(() => ({ message: "Authentication failed" }))
+                throw new Error(errorData.message || "Authentication failed")
+              }
+
+              data = await response.json()
+            } else {
+              throw directError
+            }
           }
-
-          const response = await fetch(url, {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(body),
-          })
-
-          if (!response.ok) {
-            const errorData = await response.json().catch(() => ({ message: "Authentication failed" }))
-            const errorMessage = errorData.message || "Authentication failed"
-            
-            // Throw error with message so NextAuth can pass it to the client
-            throw new Error(errorMessage)
-          }
-
-          const data = await response.json()
 
           // Validate response structure
           if (!data.user || !data.token) {
@@ -131,7 +156,7 @@ export const authOptions: NextAuthOptions = {
   events: {
     async signIn({ user, account, profile }) {
       // Log successful sign in
-      return true
+      // No return value needed
     },
     async signOut() {
       // Handle sign out
