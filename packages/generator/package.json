@@ -23,6 +23,8 @@
   "dependencies": {
     "@genie/analyzer": "workspace:^0.1.0",
     "@genie/shared": "workspace:^0.1.0",
+    "@types/fs-extra": "^11.0.4",
+    "@types/mustache": "^4.2.6",
     "@types/node": "^20.14.9",
     "fs-extra": "^11.2.0",
     "mustache": "^4.2.0",
@@ -31,8 +33,6 @@
     "zod": "^3.23.8"
   },
   "devDependencies": {
-    "@types/fs-extra": "^11.0.4",
-    "@types/mustache": "^4.2.6",
     "eslint": "^9.9.0",
     "typescript": "^5.5.4",
     "vitest": "^2.1.0"
