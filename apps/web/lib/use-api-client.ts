@@ -1,21 +1,12 @@
 /**
- * Hook to get API client with NextAuth session token
+ * Hook to get API client
+ * API client now reads token directly from cookies, so this is just a convenience hook
  */
 
-import { useSession } from "@/lib/auth"
 import { apiClient } from "@/lib/api-client"
-import { useEffect } from "react"
 
 export function useApiClient() {
-  const { data: session } = useSession()
-
-  useEffect(() => {
-    // Set token getter for API client
-    apiClient.setTokenGetter(async () => {
-      return (session?.user as any)?.accessToken || null
-    })
-  }, [session])
-
+  // API client reads token from cookies automatically
   return apiClient
 }
 

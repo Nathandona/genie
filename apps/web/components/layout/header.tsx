@@ -6,21 +6,19 @@ import Link from "next/link"
 
 import { useState } from "react"
 import { useRouter } from "next/navigation"
-import { useSession, signOut } from "@/lib/auth"
+import { useAuth } from "@/lib/auth"
 import { Logo } from "./logo"
 
 export function Header() {
   const router = useRouter()
-  const { data: session, status } = useSession()
+  const { user, loading, signOut } = useAuth()
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
-  const isLoggedIn = status === "authenticated"
-  const isLoading = status === "loading"
+  const isLoggedIn = !!user
+  const isLoading = loading
 
   const handleLogout = async () => {
-    await signOut({ redirect: false })
-    router.push('/')
-    router.refresh()
+    await signOut()
   }
 
   return (

@@ -59,7 +59,7 @@ class ApiClient {
     this.baseUrl = baseUrl;
   }
 
-  // Set token getter function (for NextAuth session)
+  // Set token getter function (for server-side requests)
   setTokenGetter(getter: () => Promise<string | null>) {
     this.getToken = getter;
   }
@@ -72,9 +72,17 @@ class ApiClient {
       'Content-Type': 'application/json',
     };
 
-    // Get token from NextAuth session if available
+    // Get token from cookie
     let token: string | null = null;
-    if (this.getToken) {
+    if (typeof document !== 'undefined') {
+      // Client-side: read from cookie
+      const cookies = document.cookie.split(';');
+      const authCookie = cookies.find(c => c.trim().startsWith('auth-token='));
+      if (authCookie) {
+        token = authCookie.split('=')[1];
+      }
+    } else if (this.getToken) {
+      // Server-side: use token getter if available
       token = await this.getToken();
     }
 
@@ -166,12 +174,20 @@ class ApiClient {
   }
 
   async downloadProject(projectId: string): Promise<Blob> {
+    const headers: Record<string, string> = {};
+    
+    // Get token from cookie
     let token: string | null = null;
-    if (this.getToken) {
+    if (typeof document !== 'undefined') {
+      const cookies = document.cookie.split(';');
+      const authCookie = cookies.find(c => c.trim().startsWith('auth-token='));
+      if (authCookie) {
+        token = authCookie.split('=')[1];
+      }
+    } else if (this.getToken) {
       token = await this.getToken();
     }
 
-    const headers: Record<string, string> = {};
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
     }

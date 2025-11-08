@@ -1,6 +1,7 @@
 import { NextResponse } from 'next/server'
 import type { NextRequest } from 'next/server'
-import { getToken } from 'next-auth/jwt'
+import { cookies } from 'next/headers'
+import { getApiUrl } from '@/lib/api-url'
 
 // Paths that require authentication
 const protectedPaths = ['/dashboard', '/create', '/progress', '/results']
@@ -8,7 +9,7 @@ const protectedPaths = ['/dashboard', '/create', '/progress', '/results']
 export async function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
 
-  // Skip NextAuth API routes
+  // Skip auth API routes
   if (pathname.startsWith('/api/auth')) {
     return NextResponse.next()
   }
@@ -19,14 +20,37 @@ export async function proxy(request: NextRequest) {
   )
 
   if (isProtectedPath) {
-    // Check for NextAuth session token
-    const token = await getToken({ 
-      req: request as any,
-      secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET 
-    })
+    // Check for auth token in cookie
+    const cookieStore = await cookies()
+    const token = cookieStore.get('auth-token')?.value
 
-    // If no token, redirect to login
+    // If no token, verify session with backend
     if (!token) {
+      const loginUrl = new URL('/login', request.url)
+      loginUrl.searchParams.set('redirect', pathname)
+      return NextResponse.redirect(loginUrl)
+    }
+
+    // Verify token is still valid
+    try {
+      const url = getApiUrl('/auth/session')
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/json',
+        },
+        cache: 'no-store',
+      })
+
+      if (!response.ok) {
+        // Token invalid, redirect to login
+        const loginUrl = new URL('/login', request.url)
+        loginUrl.searchParams.set('redirect', pathname)
+        return NextResponse.redirect(loginUrl)
+      }
+    } catch (error) {
+      // Error verifying token, redirect to login
       const loginUrl = new URL('/login', request.url)
       loginUrl.searchParams.set('redirect', pathname)
       return NextResponse.redirect(loginUrl)
@@ -35,12 +59,27 @@ export async function proxy(request: NextRequest) {
 
   // If on login page and already authenticated, redirect to dashboard
   if (pathname === '/login') {
-    const token = await getToken({ 
-      req: request as any,
-      secret: process.env.NEXTAUTH_SECRET || process.env.JWT_SECRET 
-    })
+    const cookieStore = await cookies()
+    const token = cookieStore.get('auth-token')?.value
+    
     if (token) {
-      return NextResponse.redirect(new URL('/dashboard', request.url))
+      try {
+        const url = getApiUrl('/auth/session')
+        const response = await fetch(url, {
+          method: 'GET',
+          headers: {
+            'Authorization': `Bearer ${token}`,
+            'Content-Type': 'application/json',
+          },
+          cache: 'no-store',
+        })
+
+        if (response.ok) {
+          return NextResponse.redirect(new URL('/dashboard', request.url))
+        }
+      } catch (error) {
+        // Error verifying token, allow login page
+      }
     }
   }
 
@@ -51,7 +90,7 @@ export const config = {
   matcher: [
     /*
      * Match all request paths except for the ones starting with:
-     * - api (API routes - including NextAuth)
+     * - api (API routes)
      * - _next/static (static files)
      * - _next/image (image optimization files)
      * - favicon.ico, sitemap.xml, robots.txt (metadata files)
@@ -59,4 +98,3 @@ export const config = {
     '/((?!api|_next/static|_next/image|favicon.ico|sitemap.xml|robots.txt|icon.svg).*)',
   ],
 }
-

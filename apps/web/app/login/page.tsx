@@ -2,7 +2,7 @@
 
 import { FormEvent, useState, useEffect, Suspense } from "react"
 import { useRouter, useSearchParams } from "next/navigation"
-import { signIn } from "next-auth/react"
+import { useAuth } from "@/lib/auth"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 
@@ -11,26 +11,13 @@ type AuthMode = "login" | "signup"
 function LoginForm() {
   const router = useRouter()
   const searchParams = useSearchParams()
+  const { signIn, signUp } = useAuth()
   const [mode, setMode] = useState<AuthMode>("login")
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [name, setName] = useState("")
   const [error, setError] = useState<string | null>(null)
   const [isLoading, setIsLoading] = useState(false)
-
-  // Check for error from NextAuth query params
-  useEffect(() => {
-    const errorParam = searchParams.get('error')
-    if (errorParam) {
-      const errorMessages: Record<string, string> = {
-        'CredentialsSignin': 'Invalid email or password',
-        'Configuration': 'Authentication configuration error',
-        'AccessDenied': 'Access denied',
-        'Verification': 'Verification error',
-      }
-      setError(errorMessages[errorParam] || 'An authentication error occurred')
-    }
-  }, [searchParams])
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault()
@@ -53,42 +40,18 @@ function LoginForm() {
     setError(null)
 
     try {
-      const result = await signIn("credentials", {
-        email: normalizedEmail,
-        password: trimmedPassword,
-        name: trimmedName || undefined,
-        mode: mode,
-        redirect: false,
-      })
+      const result = mode === "login"
+        ? await signIn(normalizedEmail, trimmedPassword)
+        : await signUp(normalizedEmail, trimmedPassword, trimmedName || undefined)
 
-      if (result?.error) {
-        // NextAuth passes error messages from the authorize function
-        // Check if it's a custom error message or a default one
-        let errorMessage = result.error
-        
-        // If it's a generic NextAuth error, try to get more details
-        if (result.error === "CredentialsSignin") {
-          errorMessage = "Invalid email or password"
-        } else if (result.error === "Configuration") {
-          errorMessage = "Authentication configuration error. Please check server logs."
-        } else if (result.error.includes("Email already registered")) {
-          errorMessage = "This email is already registered. Please sign in instead."
-        } else if (result.error.includes("Invalid credentials")) {
-          errorMessage = "Invalid email or password"
-        } else if (result.error.includes("required")) {
-          errorMessage = result.error
-        }
-        
-        setError(errorMessage)
+      if (result.error) {
+        setError(result.error)
         return
       }
 
-      if (result?.ok) {
-        // Get redirect URL from query params or default to dashboard
-        const redirect = searchParams.get('redirect') || '/dashboard'
-        // Use window.location for a full page refresh to ensure session is loaded
-        window.location.href = redirect
-      }
+      // Success - redirect to dashboard
+      const redirect = searchParams.get('redirect') || '/dashboard'
+      window.location.href = redirect
     } catch (err) {
       const message = err instanceof Error ? err.message : "Something went wrong"
       setError(message)

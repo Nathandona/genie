@@ -6,9 +6,8 @@ const nextConfig: NextConfig = {
   // In development, proxy to local API server
   async rewrites() {
     // Note: We don't proxy /api/* routes here because:
-    // 1. NextAuth routes (/api/auth/*) must be handled by Next.js route handlers
-    // 2. Backend API routes are accessed directly via NEXT_PUBLIC_API_URL in the API client
-    // 3. In production, /api/* goes through Vercel serverless function wrapper
+    // 1. Backend API routes are accessed directly via NEXT_PUBLIC_API_URL in the API client
+    // 2. In production, /api/* goes through Vercel serverless function wrapper
     return [];
   },
   // Exclude API directory from Next.js processing

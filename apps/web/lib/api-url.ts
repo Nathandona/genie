@@ -11,7 +11,6 @@
  * Get the API base URL for making HTTP requests
  * 
  * - In production: Returns '/api' (relative path handled by Vercel serverless wrapper)
- *   BUT for server-side calls, we use '/api/v1' to avoid NextAuth route conflicts
  * - In development: Returns 'http://localhost:4000' or NEXT_PUBLIC_API_URL if set
  * 
  * Works in both client and server-side contexts (Next.js Server Components, API routes, etc.)
@@ -19,11 +18,6 @@
 export function getApiBaseUrl(): string {
   // In production, use relative /api path (goes through Vercel serverless wrapper)
   if (process.env.NODE_ENV === 'production') {
-    // For server-side calls, use /api/v1 to avoid NextAuth route conflicts
-    // NextAuth handles /api/auth/*, so we use /api/v1/auth/* for backend routes
-    if (typeof window === 'undefined') {
-      return '/api/v1';
-    }
     return '/api';
   }
 
@@ -54,7 +48,7 @@ export function getApiUrl(endpoint: string): string {
   const url = `${baseUrl}${normalizedEndpoint}`;
   
   // In production, if we're server-side and the URL is relative, make it absolute
-  // This is needed for fetch() calls from NextAuth authorize function
+  // This is needed for fetch() calls from server-side API routes
   if (process.env.NODE_ENV === 'production' && url.startsWith('/')) {
     // Check if we're in a server-side context (no window object)
     if (typeof window === 'undefined') {

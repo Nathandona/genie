@@ -8,7 +8,7 @@ import { Badge } from "@/components/ui/badge"
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert"
 import Link from "next/link"
 import { apiClient } from "@/lib/api-client"
-import { useSession } from "@/lib/auth"
+import { useAuth } from "@/lib/auth"
 import { useRouter } from "next/navigation"
 
 const plans = [
@@ -97,7 +97,7 @@ const plans = [
 
 export default function PricingPage() {
   const router = useRouter()
-  const { data: session, status } = useSession()
+  const { user, loading } = useAuth()
   const [loadingPlan, setLoadingPlan] = useState<string | null>(null)
   const [error, setError] = useState<string | null>(null)
 
@@ -116,7 +116,7 @@ export default function PricingPage() {
     }
 
     // Check if user is authenticated
-    if (status !== "authenticated") {
+    if (!user) {
       router.push("/login?redirect=/pricing")
       return
     }
