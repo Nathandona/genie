@@ -307,11 +307,6 @@ function ResultsPageContent() {
     <div className="min-h-screen bg-gradient-to-b from-background to-muted/20 py-12">
       <div className="container mx-auto px-4 sm:px-6 lg:px-8">
         <div className="mb-8 text-center">
-          <div className="mb-4 flex justify-center">
-            <div className="rounded-full bg-green-500/10 p-4">
-              <CheckCircle2 className="h-16 w-16 text-green-500" />
-            </div>
-          </div>
           <h1 className="mb-2 text-4xl font-bold tracking-tight sm:text-5xl">Project Generated Successfully!</h1>
           <p className="text-lg text-muted-foreground">
             {project?.sourceUrl ? `Generated from ${project.sourceUrl}` : "Your Next.js project is ready to download and deploy"}
@@ -353,9 +348,10 @@ function ResultsPageContent() {
                     {downloadInfo ? (
                       <>
                         {downloadInfo.fileCount.toLocaleString()} files · {formatBytes(downloadInfo.totalSize)}
+                        {!downloadInfo.zipReady && " · ZIP being prepared..."}
                       </>
                     ) : (
-                      "We are preparing your download package"
+                      "Preparing download information..."
                     )}
                   </p>
                 </div>
@@ -364,12 +360,17 @@ function ResultsPageContent() {
                     size="lg"
                     onClick={handleDownload}
                     className="w-full sm:w-auto"
-                    disabled={isDownloading || project?.status !== 'completed'}
+                    disabled={isDownloading || project?.status !== 'completed' || !downloadInfo?.zipReady}
                   >
                     {isDownloading ? (
                       <>
                         <Loader2 className="mr-2 h-5 w-5 animate-spin" />
                         Downloading...
+                      </>
+                    ) : !downloadInfo?.zipReady ? (
+                      <>
+                        <Clock className="mr-2 h-5 w-5" />
+                        Preparing ZIP...
                       </>
                     ) : (
                       <>

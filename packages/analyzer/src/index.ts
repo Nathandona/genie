@@ -6,8 +6,8 @@
  */
 
 // Re-export core analysis functionality
-export { analyzeDesignTokens, analyzeDesignSystem, analyzePage, extractContentSlices } from './core/analyzer.js';
-export type { DesignTokenSummary, AnalysisResult } from './core/analyzer.js';
+export { analyzeDesignTokens, analyzeDesignSystem, analyzePage, extractContentSlices, extractSemanticContent } from './core/analyzer.js';
+export type { DesignTokenSummary, AnalysisResult, SemanticContent } from './core/analyzer.js';
 
 // Re-export color extraction utilities
 export { extractAllColors, generateColorPalette } from './extractors/color-extractor.js';

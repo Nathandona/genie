@@ -46,9 +46,10 @@ export interface CrawlJob {
 }
 
 export interface DownloadInfo {
-  download: string;
+  download: string | null;
   fileCount: number;
   totalSize: number;
+  zipReady: boolean;
 }
 
 class ApiClient {

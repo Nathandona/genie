@@ -5,6 +5,25 @@ import { z } from 'zod/v4';
 import { enqueueProjectPipeline } from '../services/pipeline-queue.js';
 import { serializeProject } from '../utils/serializers.js';
 
+function getPhaseDescription(phase: string): string {
+  switch (phase) {
+    case 'queued':
+      return 'Project is queued for processing';
+    case 'extraction':
+      return 'Crawling website and extracting content';
+    case 'analysis':
+      return 'Analyzing semantic content and design tokens';
+    case 'selection':
+      return 'AI matching content to optimal UI components';
+    case 'generation':
+      return 'Generating component-based Next.js project';
+    case 'finalization':
+      return 'Finalizing and packaging project';
+    default:
+      return 'Processing project';
+  }
+}
+
 const createProjectSchema = z.object({
   sourceUrl: z.string().url(),
   settings: z.object({
@@ -125,7 +144,7 @@ export default async function projectRoutes(app: FastifyInstance) {
     }));
   });
 
-  // get progress for a project (includes CrawlJob data)
+  // get progress for a project (includes CrawlJob data and component-based pipeline info)
   server.get('/projects/:id/progress', {
     preHandler: server.authenticate,
     schema: {
@@ -155,8 +174,38 @@ export default async function projectRoutes(app: FastifyInstance) {
       orderBy: { createdAt: 'desc' }
     });
 
+    // Calculate pipeline phase based on project status and crawl job progress
+    let currentPhase: string;
+    let phaseProgress: number;
+
+    if (project.status === 'queued') {
+      currentPhase = 'queued';
+      phaseProgress = 0;
+    } else if (project.status === 'crawling') {
+      currentPhase = 'extraction';
+      phaseProgress = Math.min(crawlJob?.progress || 0, 40); // Extraction is 0-40%
+    } else if (project.status === 'analyzing') {
+      currentPhase = 'analysis';
+      phaseProgress = 40 + Math.min(Math.max((crawlJob?.progress || 0) - 40, 0), 30); // Analysis is 40-70%
+    } else if (project.status === 'generating') {
+      currentPhase = 'selection';
+      phaseProgress = 70 + Math.min((crawlJob?.progress || 0) - 70, 25); // Selection is 70-95%
+    } else if (project.status === 'completed') {
+      currentPhase = 'finalization';
+      phaseProgress = 100;
+    } else {
+      currentPhase = 'extraction';
+      phaseProgress = 0;
+    }
+
     return {
       project: serializeProject(project),
+      pipeline: {
+        currentPhase,
+        phaseProgress,
+        overallProgress: Math.min(phaseProgress, 100),
+        phaseDescription: getPhaseDescription(currentPhase)
+      },
       crawlJob: crawlJob ? {
         id: crawlJob.id,
         status: crawlJob.status,
@@ -169,13 +218,13 @@ export default async function projectRoutes(app: FastifyInstance) {
       } : null,
       stats: {
         pagesDiscovered: pages,
-        componentsCreated: generation?.fileCount ? Math.floor(generation.fileCount / 10) : 0, // Estimate from file count
+        componentsMatched: generation?.fileCount ? Math.max(1, Math.floor(generation.fileCount / 5)) : 0, // Estimate component matches
         assetsOptimized: assets
       }
     };
   });
 
-  // get download link for latest generation
+  // get download info for latest generation
   server.get('/projects/:id/download', {
     preHandler: server.authenticate,
     schema: {
@@ -192,8 +241,13 @@ export default async function projectRoutes(app: FastifyInstance) {
     const generation = await server.db.generation.findFirst({ where: { projectId: id }, orderBy: { createdAt: 'desc' } });
     if (!generation) return reply.status(404).send({ message: 'No generation available' });
 
-    // For now return the s3 path as the download link (frontend will request signed url from S3 integration)
-    return { download: generation.s3ZipPath, fileCount: generation.fileCount, totalSize: generation.totalSize };
+    // Return generation stats even if ZIP isn't ready yet (s3ZipPath may be null)
+    return {
+      download: generation.s3ZipPath,
+      fileCount: generation.fileCount,
+      totalSize: generation.totalSize,
+      zipReady: generation.s3ZipPath !== null
+    };
   });
 
   // download project ZIP file

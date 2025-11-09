@@ -1,5 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { createOpenAIClient, createAnthropicClient, inferLayoutPatterns, type LayoutInferenceRequest } from '../index.js';
+import {
+  createOpenAIClient,
+  createAnthropicClient,
+  inferLayoutPatterns,
+  type LayoutInferenceRequest,
+  createComponentSelectionRequest,
+  selectComponentsWithConfidence,
+  fallbackComponentSelection,
+  type ComponentSelectionRequest
+} from '../index.js';
 import type OpenAI from 'openai';
 
 // Mock OpenAI
@@ -44,6 +53,7 @@ vi.mock('@anthropic-ai/sdk', () => {
 describe('@genie/ai-services', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    vi.spyOn(console, 'error').mockImplementation(() => {});
   });
 
   describe('createOpenAIClient', () => {
@@ -339,6 +349,139 @@ describe('@genie/ai-services', () => {
       const callArgs = (mockClient.chat.completions.create as ReturnType<typeof vi.fn>).mock.calls[0][0];
       expect(callArgs.messages[0].role).toBe('system');
       expect(callArgs.messages[0].content).toContain('layout classification');
+    });
+  });
+
+  describe('Component Selection', () => {
+    describe('createComponentSelectionRequest', () => {
+      it('should create component selection request from semantic content', () => {
+        const semanticContent = {
+          hero: { title: 'Welcome', description: 'Welcome message' },
+          features: { features: [{ title: 'Feature 1' }] }
+        };
+
+        const request = createComponentSelectionRequest(semanticContent);
+
+        expect(request.semanticContent).toEqual(semanticContent);
+        expect(request.componentRegistry).toBeDefined();
+        expect(request.componentRegistry.availableComponents).toBeDefined();
+        expect(request.componentRegistry.availableComponents.length).toBeGreaterThan(0);
+      });
+
+      it('should include context information when provided', () => {
+        const semanticContent = { hero: { title: 'Test' } };
+        const pageSummary = { title: 'Test Page', url: 'https://example.com' };
+
+        const request = createComponentSelectionRequest(semanticContent, pageSummary);
+
+        expect(request.context?.pageSummary).toEqual(pageSummary);
+      });
+    });
+
+    describe('selectComponentsWithConfidence', () => {
+      it('should select components for hero content', () => {
+        const semanticContent = {
+          hero: { title: 'Welcome', description: 'Welcome message' }
+        };
+
+        const componentRegistry = createComponentSelectionRequest(semanticContent).componentRegistry;
+        const matches = selectComponentsWithConfidence(semanticContent, componentRegistry);
+
+        expect(matches.length).toBe(1);
+        expect(matches[0].componentId).toBe('hero-default');
+        expect(matches[0].componentType).toBe('hero');
+        expect(matches[0].confidence).toBe(0.9);
+        expect(matches[0].contentMapping).toEqual(semanticContent.hero);
+      });
+
+      it('should select components for multiple content types', () => {
+        const semanticContent = {
+          hero: { title: 'Welcome' },
+          features: { features: [{ title: 'Feature 1' }] },
+          pricing: { plans: [{ name: 'Basic', price: '$10' }] }
+        };
+
+        const componentRegistry = createComponentSelectionRequest(semanticContent).componentRegistry;
+        const matches = selectComponentsWithConfidence(semanticContent, componentRegistry);
+
+        expect(matches.length).toBe(3);
+        expect(matches[0].componentType).toBe('hero');
+        expect(matches[1].componentType).toBe('features');
+        expect(matches[2].componentType).toBe('pricing');
+      });
+
+      it('should sort matches by confidence', () => {
+        const semanticContent = {
+          hero: { title: 'Welcome' },
+          features: { features: [{ title: 'Feature 1' }] }
+        };
+
+        const componentRegistry = createComponentSelectionRequest(semanticContent).componentRegistry;
+        const matches = selectComponentsWithConfidence(semanticContent, componentRegistry);
+
+        // All semantic matches should have high confidence (0.9)
+        expect(matches[0].confidence).toBe(0.9);
+        expect(matches[1].confidence).toBe(0.9);
+      });
+
+      it('should handle empty semantic content', () => {
+        const semanticContent = {};
+        const componentRegistry = createComponentSelectionRequest(semanticContent).componentRegistry;
+        const matches = selectComponentsWithConfidence(semanticContent, componentRegistry);
+
+        expect(matches.length).toBe(0);
+      });
+    });
+
+    describe('fallbackComponentSelection', () => {
+      it('should provide fallback selection for hero content', () => {
+        const request: ComponentSelectionRequest = {
+          semanticContent: {
+            hero: { title: 'Welcome', description: 'Welcome message' }
+          },
+          componentRegistry: createComponentSelectionRequest({}).componentRegistry
+        };
+
+        const response = fallbackComponentSelection(request);
+
+        expect(response.matches.length).toBe(1);
+        expect(response.matches[0].componentId).toBe('hero-default');
+        expect(response.matches[0].confidence).toBe(0.8);
+        expect(response.metadata?.fallback).toBe(true);
+        expect(response.metadata?.ruleBased).toBe(true);
+      });
+
+      it('should handle multiple content types in fallback', () => {
+        const request: ComponentSelectionRequest = {
+          semanticContent: {
+            hero: { title: 'Welcome' },
+            features: { features: [{ title: 'Feature 1' }] },
+            pricing: { plans: [{ name: 'Basic' }] },
+            testimonials: { testimonials: [{ name: 'John', content: 'Great!' }] }
+          },
+          componentRegistry: createComponentSelectionRequest({}).componentRegistry
+        };
+
+        const response = fallbackComponentSelection(request);
+
+        expect(response.matches.length).toBe(4);
+        expect(response.matches.map(m => m.componentType)).toEqual(
+          expect.arrayContaining(['hero', 'features', 'pricing', 'testimonials'])
+        );
+      });
+
+      it('should return empty matches for unrecognized content', () => {
+        const request: ComponentSelectionRequest = {
+          semanticContent: {
+            unknown: { some: 'content' }
+          },
+          componentRegistry: createComponentSelectionRequest({}).componentRegistry
+        };
+
+        const response = fallbackComponentSelection(request);
+
+        expect(response.matches.length).toBe(0);
+      });
     });
   });
 });

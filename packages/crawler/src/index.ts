@@ -18,20 +18,26 @@ async function getChromium() {
   return null;
 }
 
+export type CrawlOptions = {
+  projectId: string;
+  startUrl: string;
+  settings: ProjectSettings;
+  maxConcurrency?: number;
+  waitStrategy?: 'domcontentloaded' | 'networkidle0' | 'networkidle2' | 'load';
+  onProgress?: (progress: {
+    currentPage: string;
+    pagesDiscovered: number;
+    progress: number;
+  }) => void;
+};
+
 const crawlOptionsSchema = z.object({
   projectId: z.string(),
   startUrl: z.string().url(),
   settings: z.custom<ProjectSettings>(),
   maxConcurrency: z.number().min(1).max(5).default(2),
-  waitStrategy: z.enum(['domcontentloaded', 'networkidle0', 'networkidle2', 'load']).default('networkidle0'),
-  onProgress: z.function().args(z.object({
-    currentPage: z.string(),
-    pagesDiscovered: z.number(),
-    progress: z.number()
-  })).optional()
+  waitStrategy: z.enum(['domcontentloaded', 'networkidle0', 'networkidle2', 'load']).default('networkidle0')
 });
-
-export type CrawlOptions = z.infer<typeof crawlOptionsSchema>;
 
 export interface CrawlResult {
   pages: Array<{ 
@@ -237,7 +243,8 @@ export class SiteCrawler {
   }
 
   async crawl(rawOptions: CrawlOptions): Promise<CrawlResult> {
-    const options = crawlOptionsSchema.parse(rawOptions);
+    const { onProgress, ...coreOptions } = rawOptions;
+    const options = { ...crawlOptionsSchema.parse(coreOptions), onProgress };
     await this.init();
 
     const maxPages = options.settings.maxPages ?? 10;

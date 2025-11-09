@@ -608,10 +608,10 @@ describe('Projects API Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      expect(body.stats.componentsCreated).toBe(7); // Math.floor(75 / 10) = 7
+      expect(body.stats.componentsMatched).toBe(15); // Math.floor(75 / 5) = 15
     });
 
-    it('should return 0 componentsCreated when no generation', async () => {
+    it('should return 0 componentsMatched when no generation', async () => {
       const mockProject = {
         id: mockProjectId,
         userId: mockUserId,
@@ -639,7 +639,133 @@ describe('Projects API Routes', () => {
 
       expect(response.statusCode).toBe(200);
       const body = JSON.parse(response.body);
-      expect(body.stats.componentsCreated).toBe(0);
+      expect(body.stats.componentsMatched).toBe(0);
+    });
+
+    it('should return pipeline information for different project statuses', async () => {
+      const testCases = [
+        {
+          status: 'queued' as const,
+          expectedPhase: 'queued',
+          expectedProgress: 0,
+          expectedDescription: 'Project is queued for processing'
+        },
+        {
+          status: 'crawling' as const,
+          expectedPhase: 'extraction',
+          expectedProgress: 25,
+          expectedDescription: 'Crawling website and extracting content',
+          crawlJobProgress: 25
+        },
+        {
+          status: 'analyzing' as const,
+          expectedPhase: 'analysis',
+          expectedProgress: 50,
+          expectedDescription: 'Analyzing semantic content and design tokens',
+          crawlJobProgress: 50
+        },
+        {
+          status: 'generating' as const,
+          expectedPhase: 'selection',
+          expectedProgress: 80,
+          expectedDescription: 'AI matching content to optimal UI components',
+          crawlJobProgress: 80
+        },
+        {
+          status: 'completed' as const,
+          expectedPhase: 'finalization',
+          expectedProgress: 100,
+          expectedDescription: 'Finalizing and packaging project'
+        }
+      ];
+
+      for (const testCase of testCases) {
+        const mockProject = {
+          id: mockProjectId,
+          userId: mockUserId,
+          sourceUrl: 'https://example.com',
+          status: testCase.status,
+          pageCount: 5,
+          generationTime: null,
+          settings: { maxPages: 10 },
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          completedAt: testCase.status === 'completed' ? new Date() : null,
+        };
+
+        const mockCrawlJob = testCase.crawlJobProgress ? {
+          id: 'job-123',
+          projectId: mockProjectId,
+          status: 'running' as const,
+          progress: testCase.crawlJobProgress,
+          currentPage: 'https://example.com/page',
+          pagesDiscovered: 5,
+          startedAt: new Date(),
+          completedAt: null,
+          errors: [],
+        } : null;
+
+        mockDb.project.findUnique.mockResolvedValue(mockProject as any);
+        mockDb.crawlJob.findFirst.mockResolvedValue(mockCrawlJob as any);
+        mockDb.page.count.mockResolvedValue(5);
+        mockDb.asset.count.mockResolvedValue(10);
+        mockDb.generation.findFirst.mockResolvedValue(null);
+
+        const response = await app.inject({
+          method: 'GET',
+          url: `/projects/${mockProjectId}/progress`,
+          headers: createAuthHeaders(mockUserId),
+        });
+
+        expect(response.statusCode).toBe(200);
+        const body = JSON.parse(response.body);
+        expect(body.pipeline.currentPhase).toBe(testCase.expectedPhase);
+        expect(body.pipeline.phaseProgress).toBe(testCase.expectedProgress);
+        expect(body.pipeline.overallProgress).toBe(testCase.expectedProgress);
+        expect(body.pipeline.phaseDescription).toBe(testCase.expectedDescription);
+      }
+    });
+
+    it('should calculate componentsMatched from generation fileCount', async () => {
+      const mockProject = {
+        id: mockProjectId,
+        userId: mockUserId,
+        sourceUrl: 'https://example.com',
+        status: 'completed' as const,
+        pageCount: 5,
+        generationTime: 120,
+        settings: { maxPages: 10 },
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        completedAt: new Date(),
+      };
+
+      const mockGeneration = {
+        id: 'gen-123',
+        projectId: mockProjectId,
+        version: 1,
+        s3ZipPath: 'file:///tmp/genie-project.zip',
+        fileCount: 25,
+        totalSize: 1024000,
+        downloadCount: 0,
+        createdAt: new Date(),
+      };
+
+      mockDb.project.findUnique.mockResolvedValue(mockProject as any);
+      mockDb.crawlJob.findFirst.mockResolvedValue(null);
+      mockDb.page.count.mockResolvedValue(5);
+      mockDb.asset.count.mockResolvedValue(10);
+      mockDb.generation.findFirst.mockResolvedValue(mockGeneration as any);
+
+      const response = await app.inject({
+        method: 'GET',
+        url: `/projects/${mockProjectId}/progress`,
+        headers: createAuthHeaders(mockUserId),
+      });
+
+      expect(response.statusCode).toBe(200);
+      const body = JSON.parse(response.body);
+      expect(body.stats.componentsMatched).toBe(5); // Math.floor(25 / 5) = 5
     });
 
     it('should return 404 if user does not own project', async () => {

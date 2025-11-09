@@ -1,6 +1,5 @@
 import { Queue, Worker, type Job } from 'bullmq';
 import { Redis } from 'ioredis';
-import { Prisma } from '@prisma/client';
 import { join } from 'node:path';
 import { tmpdir } from 'node:os';
 import { createWriteStream } from 'node:fs';
@@ -8,9 +7,9 @@ import { rm } from 'node:fs/promises';
 import archiver from 'archiver';
 import type { ProjectSettings } from '@genie/shared';
 import { SiteCrawler } from '@genie/crawler';
-import { analyzeDesignTokens, analyzePage, extractContentSlices } from '@genie/analyzer';
-import { generateNextJSProject, previewAndRefine } from '@genie/generator';
-import { createGeminiClient } from '@genie/ai-services';
+import { analyzePage, extractSemanticContent, type SemanticContent } from '@genie/analyzer';
+import { generateNextJSProjectFromComponents } from '@genie/generator';
+import { createComponentSelectionRequest, selectComponentsWithConfidence } from '@genie/ai-services';
 
 import { env } from '../env.js';
 import { prisma } from '../db/prisma.js';
@@ -53,7 +52,10 @@ const workerRedis = new Redis(env.REDIS_URL, {
   maxRetriesPerRequest: null
 });
 
-const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
+/**
+ * New component-based pipeline processing
+ */
+const processPipelineJobComponentBased = async (job: Job<ProjectPipelineJobData>) => {
   const { projectId, sourceUrl, settings } = job.data;
 
   const project = await prisma.project.findUnique({ where: { id: projectId } });
@@ -65,7 +67,9 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
   const crawler = new SiteCrawler();
 
   try {
-    // Update status to crawling
+    // Phase 1: Extraction - Crawl and extract content
+    console.log(`🔍 Phase 1: Extracting content from ${sourceUrl}`);
+
     await prisma.project.update({
       where: { id: projectId },
       data: { status: 'crawling' }
@@ -89,19 +93,18 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
       });
     }
 
-    // Crawl the website (optimized: use domcontentloaded for faster crawling)
     const crawlResult = await crawler.crawl({
       projectId,
       startUrl: sourceUrl,
       settings,
       maxConcurrency: 2,
-      waitStrategy: 'domcontentloaded', // Faster than networkidle0
+      waitStrategy: 'domcontentloaded',
       onProgress: async (progress: { currentPage: string; pagesDiscovered: number; progress: number }) => {
         if (crawlJob) {
           await prisma.crawlJob.update({
             where: { id: crawlJob.id },
             data: {
-              progress: Math.min(progress.progress, 50), // Crawling is 0-50%
+              progress: Math.min(progress.progress, 40), // Extraction is 0-40%
               currentPage: progress.currentPage,
               pagesDiscovered: progress.pagesDiscovered
             }
@@ -124,7 +127,6 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
       });
     }
 
-    // Update status to analyzing
     await prisma.project.update({
       where: { id: projectId },
       data: {
@@ -136,16 +138,16 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
     if (crawlJob) {
       await prisma.crawlJob.update({
         where: { id: crawlJob.id },
-        data: {
-          progress: 60,
-          pagesDiscovered: crawlResult.pages.length,
-          currentPage: crawlResult.pages.at(-1)?.url ?? sourceUrl
-        }
+        data: { progress: 50 }
       });
     }
 
-    // Analyze design tokens and content slices from all pages in parallel
-    const allDesignTokens = {
+    // Phase 2: Analysis - Extract semantic content and design tokens
+    console.log(`🧠 Phase 2: Analyzing semantic content`);
+
+    // Extract semantic content from pages
+    const semanticContents: Record<string, SemanticContent> = {};
+    const designTokens: any = {
       colors: new Set<string>(),
       fonts: new Set<string>(),
       spacingScale: new Set<number>(),
@@ -154,276 +156,129 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
       requiredComponents: new Set<string>()
     };
 
-    // Also collect color palettes for enhanced theming
-    const allColorPalettes: Array<import('@genie/analyzer').ColorPalette> = [];
+    for (const page of crawlResult.pages) {
+      // Extract semantic content
+      const semanticContent = extractSemanticContent(page.html);
+      semanticContents[page.url] = semanticContent;
 
-    // Parallel analysis for faster processing
-    const analysisResults = await Promise.all(
-      crawlResult.pages.map((page) => analyzePage({ html: page.html }))
-    );
-
-    // Combine all tokens and collect content slices
-    const pageContentSlices: Array<{ url: string; slices: ReturnType<typeof extractContentSlices> }> = [];
-
-    for (const analysis of analysisResults) {
-      const tokens = analysis.designTokens;
-      tokens.colors.forEach((c: string) => allDesignTokens.colors.add(c));
-      tokens.fonts.forEach((f: string) => allDesignTokens.fonts.add(f));
-      tokens.spacingScale.forEach((s: number) => allDesignTokens.spacingScale.add(s));
-      if (tokens.borderRadius) {
-        tokens.borderRadius.forEach((b: number) => allDesignTokens.borderRadius.add(b));
+      // Extract design tokens
+      const analysis = await analyzePage({ html: page.html });
+      analysis.designTokens.colors.forEach((c: string) => designTokens.colors.add(c));
+      analysis.designTokens.fonts.forEach((f: string) => designTokens.fonts.add(f));
+      analysis.designTokens.spacingScale.forEach((s: number) => designTokens.spacingScale.add(s));
+      if (analysis.designTokens.borderRadius) {
+        analysis.designTokens.borderRadius.forEach((b: number) => designTokens.borderRadius.add(b));
       }
-      if (tokens.shadows) {
-        tokens.shadows.forEach((sh: string) => allDesignTokens.shadows.add(sh));
+      if (analysis.designTokens.shadows) {
+        analysis.designTokens.shadows.forEach((sh: string) => designTokens.shadows.add(sh));
       }
-      if (tokens.requiredComponents) {
-        tokens.requiredComponents.forEach((c: string) => allDesignTokens.requiredComponents.add(c));
-      }
-
-      // Collect color palettes if available
-      if (analysis.colorPalette) {
-        allColorPalettes.push(analysis.colorPalette);
-      }
-    }
-
-    // Collect content slices per page
-    for (let i = 0; i < crawlResult.pages.length; i++) {
-      const page = crawlResult.pages[i];
-      const analysis = analysisResults[i];
-      pageContentSlices.push({
-        url: page.url,
-        slices: analysis.contentSlices
-      });
     }
 
     const combinedTokens = {
-      colors: Array.from(allDesignTokens.colors).slice(0, 12),
-      fonts: Array.from(allDesignTokens.fonts),
-      spacingScale: Array.from(allDesignTokens.spacingScale).sort((a, b) => a - b),
-      borderRadius: Array.from(allDesignTokens.borderRadius).sort((a, b) => a - b),
-      shadows: Array.from(allDesignTokens.shadows).slice(0, 10),
-      requiredComponents: Array.from(allDesignTokens.requiredComponents)
+      colors: Array.from(designTokens.colors).slice(0, 12),
+      fonts: Array.from(designTokens.fonts),
+      spacingScale: Array.from(designTokens.spacingScale).sort((a, b) => a - b),
+      borderRadius: Array.from(designTokens.borderRadius).sort((a, b) => a - b),
+      shadows: Array.from(designTokens.shadows).slice(0, 10),
+      requiredComponents: Array.from(designTokens.requiredComponents)
     };
-
-    // Combine color palettes from all pages
-    const combinedColorPalette = combineColorPalettes(allColorPalettes);
-
-    // Update pages with design tokens
-    for (const page of crawlResult.pages) {
-      const pageRecord = await prisma.page.findFirst({
-        where: { projectId, url: page.url }
-      });
-      if (pageRecord) {
-        await prisma.page.update({
-          where: { id: pageRecord.id },
-          data: {
-            designTokens: combinedTokens as Prisma.JsonObject
-          }
-        });
-      }
-    }
 
     if (crawlJob) {
       await prisma.crawlJob.update({
         where: { id: crawlJob.id },
-        data: { progress: 80 }
+        data: { progress: 70 }
       });
     }
 
-    // Update status to generating
+    // Phase 3: Selection - Match semantic content to components
+    console.log(`🎯 Phase 3: Selecting optimal components`);
+
     await prisma.project.update({
       where: { id: projectId },
       data: { status: 'generating' }
     });
 
-    // Generate content using Gemini if API key is available
-    const geminiClient = env.GEMINI_API_KEY ? createGeminiClient({ apiKey: env.GEMINI_API_KEY }) : null;
-    const pagesWithGeneratedContent: Array<{
+    const pagesWithComponentMatches: Array<{
       url: string;
       title?: string;
       html: string;
       path: string;
       summary?: { url: string; title?: string; metaDescription?: string; mainHeading?: string; contentPreview?: string };
-      contentSlices?: Array<{ type: string; content: string; metadata?: Record<string, unknown> }>;
-      generatedContent?: string;
+      componentMatches?: import('@genie/ai-services').ComponentMatch[];
     }> = [];
 
-    if (geminiClient) {
-      // Generate content for each page using Gemini
-      for (let i = 0; i < crawlResult.pages.length; i++) {
-        const page = crawlResult.pages[i];
-        const urlObj = new URL(page.url);
-        const path = urlObj.pathname === '/' ? '/' : urlObj.pathname;
-        const contentSliceData = pageContentSlices.find(p => p.url === page.url);
-        
-        try {
-          // Create a template structure hint based on detected components
-          const templateStructure = `Use shadcn/ui components: ${combinedTokens.requiredComponents?.slice(0, 5).join(', ') || 'button, card'}`;
-          
-          const generated = await geminiClient.generateContent({
-            pageSummary: page.summary || {
-              url: page.url,
-              title: page.title,
-              metaDescription: page.metaDescription,
-              mainHeading: undefined,
-              contentPreview: undefined
-            },
-            contentSlices: contentSliceData?.slices || [],
-            themeTokens: {
-              colors: combinedTokens.colors,
-              fonts: combinedTokens.fonts,
-              spacingScale: combinedTokens.spacingScale,
-              borderRadius: combinedTokens.borderRadius,
-              shadows: combinedTokens.shadows,
-              requiredComponents: combinedTokens.requiredComponents
-            },
-            templateStructure,
-            navigation: crawlResult.navigation
-          });
+    for (const page of crawlResult.pages) {
+      const semanticContent = semanticContents[page.url];
+      const urlObj = new URL(page.url);
+      const path = urlObj.pathname === '/' ? '/' : urlObj.pathname;
 
-          pagesWithGeneratedContent.push({
-            url: page.url,
-            title: page.title,
-            html: page.html,
-            path,
-            summary: page.summary,
-            contentSlices: contentSliceData?.slices,
-            generatedContent: generated.generatedContent
-          });
-        } catch (error) {
-          console.warn(`Failed to generate content for ${page.url}:`, error);
-          // Fallback to page without AI-generated content
-          pagesWithGeneratedContent.push({
-            url: page.url,
-            title: page.title,
-            html: page.html,
-            path,
-            summary: page.summary,
-            contentSlices: contentSliceData?.slices
-          });
-        }
-      }
-    } else {
-      // No Gemini API key, use pages without generated content
-      pagesWithGeneratedContent.push(...crawlResult.pages.map((page: { url: string; title?: string; html: string; summary?: { url: string; title?: string; metaDescription?: string; mainHeading?: string; contentPreview?: string } }) => {
-        const urlObj = new URL(page.url);
-        const path = urlObj.pathname === '/' ? '/' : urlObj.pathname;
-        const contentSliceData = pageContentSlices.find(p => p.url === page.url);
-        return {
-          url: page.url,
-          title: page.title,
-          html: page.html,
-          path,
-          summary: page.summary,
-          contentSlices: contentSliceData?.slices
-        };
-      }));
-    }
+      // Use rule-based component selection
+      const componentRegistry = createComponentSelectionRequest(semanticContent).componentRegistry;
+      const matches = selectComponentsWithConfidence(semanticContent, componentRegistry);
 
-    // Generate Next.js project
-    const projectName = new URL(sourceUrl).hostname.replace('www.', '');
-    const outputDir = join(tmpdir(), `genie-${projectId}`);
-
-    console.log(`Starting Next.js project generation for ${projectName}...`);
-
-    let generationResult;
-    try {
-      generationResult = await generateNextJSProject({
-        outputDir,
-        projectName,
-        pages: pagesWithGeneratedContent,
-        designTokens: combinedTokens,
-        colorPalette: combinedColorPalette,
-        themeTokens: {
-          colors: combinedTokens.colors,
-          fonts: combinedTokens.fonts,
-          spacingScale: combinedTokens.spacingScale,
-          borderRadius: combinedTokens.borderRadius,
-          shadows: combinedTokens.shadows,
-          requiredComponents: combinedTokens.requiredComponents
-        },
-        navigation: crawlResult.navigation
+      pagesWithComponentMatches.push({
+        url: page.url,
+        title: page.title,
+        html: page.html,
+        path,
+        summary: page.summary,
+        componentMatches: matches
       });
-      console.log(`✓ Next.js project generation completed successfully`);
-    } catch (error) {
-      console.error(`Failed to generate Next.js project:`, error);
-      throw error;
     }
-
-    // Use the actual project directory created by pnpm create next-app
-    const projectDir = join(outputDir, generationResult.projectDir);
-    console.log(`Project directory: ${projectDir}`);
-
-    // Preview and refine with Gemini if available
-    if (geminiClient) {
-      try {
-        const refinedPages = await previewAndRefine({
-          projectDir,
-          projectId,
-          pages: pagesWithGeneratedContent.map(p => ({
-            url: p.url,
-            path: p.path,
-            generatedContent: p.generatedContent
-          })),
-          designTokens: combinedTokens,
-          geminiClient
-        });
-
-        // Update refined pages in the project
-        if (refinedPages.length > 0) {
-          const { writeFile } = await import('node:fs/promises');
-          for (const refined of refinedPages) {
-            const pagePath = refined.path === '/' ? 'app/page.tsx' : `app${refined.path}/page.tsx`;
-            const fullPath = join(outputDir, pagePath);
-            try {
-              await writeFile(fullPath, refined.refinedContent, 'utf8');
-            } catch (error) {
-              console.warn(`Failed to write refined content to ${pagePath}:`, error);
-            }
-          }
-        }
-      } catch (error) {
-        console.warn(`Preview and refine failed, continuing with original content:`, error);
-        // Continue with original content if refinement fails
-      }
-    }
-
-    // Create ZIP file (optimized streaming)
-    const zipPath = join(tmpdir(), `genie-${projectId}.zip`);
-    await createZipArchive(projectDir, zipPath);
-
-    // Calculate file size
-    const { statSync } = await import('node:fs');
-    const totalSize = statSync(zipPath).size;
-
-    // Cleanup temp directory after ZIP creation (optimized: free disk space)
-    try {
-      await rm(outputDir, { recursive: true, force: true });
-    } catch (cleanupError) {
-      console.warn(`Failed to cleanup temp directory ${outputDir}:`, cleanupError);
-    }
-
-    // In production, upload to S3 here
-    // For now, store the actual local file path so downloads work
-    // Format: file:///tmp/genie-{projectId}.zip (we'll parse this in the download endpoint)
-    const s3ZipPath = `file://${zipPath}`;
 
     if (crawlJob) {
       await prisma.crawlJob.update({
         where: { id: crawlJob.id },
-        data: {
-          status: 'completed',
-          completedAt: new Date(),
-          progress: 100,
-          pagesDiscovered: crawlResult.pages.length,
-          currentPage: null,
-          errors: crawlResult.errors.length > 0 ? crawlResult.errors as Prisma.JsonArray : undefined
-        }
+        data: { progress: 85 }
       });
     }
 
-    const elapsedSeconds = Math.max(1, Math.round((Date.now() - startedAt) / 1000));
+    // Phase 4: Injection & Assembly - Generate component-based project
+    console.log(`🏗️ Phase 4: Generating component-based project`);
 
+    const projectName = new URL(sourceUrl).hostname.replace('www.', '');
+    const outputDir = join(tmpdir(), `genie-${projectId}`);
+
+    let generationResult;
+    try {
+      generationResult = await generateNextJSProjectFromComponents({
+        outputDir,
+        projectName,
+        pages: pagesWithComponentMatches,
+        designTokens: combinedTokens,
+        colorPalette: undefined, // TODO: extract from semantic analysis
+        themeTokens: combinedTokens,
+        navigation: crawlResult.navigation
+      });
+      console.log(`✓ Component-based Next.js project generation completed successfully`);
+    } catch (error) {
+      console.error(`Failed to generate component-based Next.js project:`, error);
+      throw error;
+    }
+
+    // Phase 5: Finalization - ZIP and cleanup
+    console.log(`📦 Phase 5: Finalizing project`);
+
+    const projectDir = join(outputDir, generationResult.projectDir);
+    const zipPath = join(tmpdir(), `genie-${projectId}.zip`);
+    await createZipArchive(projectDir, zipPath);
+
+    const { statSync } = await import('node:fs');
+    const totalSize = statSync(zipPath).size;
+
+    // Store the ZIP file path (for now we store locally, future: upload to S3)
+    // Format: file:///tmp/genie-{projectId}.zip
+    const s3ZipPath = `file://${zipPath}`;
+
+    await prisma.project.update({
+      where: { id: projectId },
+      data: {
+        status: 'completed',
+        completedAt: new Date()
+      }
+    });
+
+    // Create generation record
     await prisma.generation.create({
       data: {
         projectId,
@@ -433,29 +288,42 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
       }
     });
 
-    await prisma.project.update({
-      where: { id: projectId },
-      data: {
-        status: 'completed',
-        generationTime: elapsedSeconds,
-        completedAt: new Date()
-      }
-    });
-  } catch (error) {
-    const message = error instanceof Error ? error.message : 'Unknown pipeline error';
-    const errorPayload: Prisma.JsonArray = [message];
+    if (crawlJob) {
+      await prisma.crawlJob.update({
+        where: { id: crawlJob.id },
+        data: {
+          status: 'completed',
+          progress: 100,
+          completedAt: new Date()
+        }
+      });
+    }
 
+    try {
+      await rm(outputDir, { recursive: true, force: true });
+    } catch (error) {
+      console.warn('Failed to cleanup temporary files:', error);
+    }
+
+    console.log(`🎉 Component-based pipeline completed successfully for project ${projectId}`);
+    console.log(`📊 Generated ${generationResult.fileCount} files, total size: ${totalSize} bytes`);
+
+  } catch (error) {
+    console.error(`❌ Component-based pipeline failed for project ${projectId}:`, error);
+
+    // Update project status to failed
     await prisma.project.update({
       where: { id: projectId },
       data: {
         status: 'failed',
         completedAt: new Date()
       }
-    }).catch(() => undefined);
+    }).catch(() => undefined); // Ignore errors in error handler
 
+    // Update crawl job status if exists
     const crawlJob = await prisma.crawlJob.findFirst({
       where: { projectId },
-      orderBy: { startedAt: 'desc' }
+      orderBy: { id: 'desc' }
     });
 
     if (crawlJob) {
@@ -463,32 +331,29 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
         where: { id: crawlJob.id },
         data: {
           status: 'failed',
-          completedAt: new Date(),
-          progress: 100,
-          errors: errorPayload
+          errors: [error instanceof Error ? error.message : 'Unknown error'],
+          completedAt: new Date()
         }
-      }).catch(() => undefined);
+      });
     }
 
     throw error;
-  } finally {
-    await crawler.close();
   }
 };
+
 
 async function createZipArchive(sourceDir: string, outputPath: string): Promise<void> {
   return new Promise((resolve, reject) => {
     const output = createWriteStream(outputPath);
-    // Optimized: Use level 6 for better speed/size balance (level 9 is too slow)
-    const archive = archiver('zip', { 
-      zlib: { level: 6 },
-      store: false // Use compression
+    const archive = archiver('zip', {
+      zlib: { level: 6 }, // Keep compression for reasonable size
+      store: false
     });
 
     output.on('close', () => resolve());
     archive.on('error', (err: Error) => reject(err));
+
     archive.on('warning', (err: Error & { code?: string }) => {
-      // Log warnings but don't fail
       if (err.code === 'ENOENT') {
         console.warn('Archive warning:', err.message);
       } else {
@@ -497,9 +362,19 @@ async function createZipArchive(sourceDir: string, outputPath: string): Promise<
     });
 
     archive.pipe(output);
-    // Include all files except node_modules
-    // archiver.directory will include everything, we'll filter via glob pattern
-    archive.directory(sourceDir, false);
+
+    // Exclude node_modules and other large/unnecessary directories
+    archive.glob('**/*', {
+      cwd: sourceDir,
+      ignore: [
+        'node_modules/**',
+        '.next/**',
+        '.git/**',
+        '*.log',
+        '.DS_Store'
+      ]
+    });
+
     archive.finalize();
   });
 }
@@ -557,7 +432,10 @@ function combineColorPalettes(palettes: Array<import('@genie/analyzer').ColorPal
   return combined;
 }
 
-export const pipelineWorker = new Worker<ProjectPipelineJobData>('project-pipeline', processPipelineJob, {
+// Component-based pipeline processor
+const pipelineProcessor = processPipelineJobComponentBased;
+
+export const pipelineWorker = new Worker<ProjectPipelineJobData>('project-pipeline', pipelineProcessor, {
   connection: workerRedis
 });
 

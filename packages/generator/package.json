@@ -24,6 +24,7 @@
     "@genie/ai-services": "workspace:^0.1.0",
     "@genie/analyzer": "workspace:^0.1.0",
     "@genie/shared": "workspace:^0.1.0",
+    "@genie/ui-library": "workspace:^0.1.0",
     "@types/fs-extra": "^11.0.4",
     "@types/mustache": "^4.2.6",
     "@types/node": "^20.14.9",

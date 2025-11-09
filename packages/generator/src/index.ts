@@ -10,8 +10,8 @@ export { previewAndRefine } from './preview-refine.js';
 export type { PreviewRefineConfig, RefinedPage } from './preview-refine.js';
 
 // Re-export core generation functionality
-export { generateFromTemplates, generateNextJSProject } from './core/project-generator.js';
-export type { GenerationConfig, ProjectGenerationConfig, GenerationResult } from './core/project-generator.js';
+export { generateNextJSProjectFromComponents } from './core/project-generator.js';
+export type { ProjectGenerationConfig, GenerationResult } from './core/project-generator.js';
 
 // Re-export utility functions for advanced usage
 export { toRelativeHref } from './utils/url-utils.js';
@@ -21,7 +21,7 @@ export { execCommand, ensureDirectory, writeFile, copyTemplate } from './utils/f
 // Re-export generators
 export { generateNavigationComponent } from './generators/navigation.js';
 export { generateFooterComponent, type FooterConfig } from './generators/footer.js';
-export { generatePageComponent, generatePageComponentFromAI } from './generators/pages.js';
+export { generatePageComponent } from './generators/pages.js';
 
 // Re-export detectors
 export { detectShadcnComponentsFromPages } from './detectors/components.js';

@@ -4,6 +4,22 @@ import type { ContentSlice, ThemeTokens } from '@genie/shared';
 import { extractAllColors, type ColorPalette } from '../extractors/color-extractor.js';
 import { parseHTMLString } from '../parsers/html-parser.js';
 import { parseCSSString } from '../parsers/css-parser.js';
+import {
+  findHeroSections,
+  type HeroCandidate
+} from '../semantic-parsers/hero-parser.js';
+import {
+  findFeaturesSections,
+  type FeaturesSectionCandidate
+} from '../semantic-parsers/features-parser.js';
+import {
+  findPricingSections,
+  type PricingSectionCandidate
+} from '../semantic-parsers/pricing-parser.js';
+import {
+  findTestimonialsSections,
+  type TestimonialsSectionCandidate
+} from '../semantic-parsers/testimonials-parser.js';
 
 export interface DesignTokenSummary {
   colors: string[];
@@ -14,9 +30,62 @@ export interface DesignTokenSummary {
   requiredComponents?: string[]; // shadcn components needed
 }
 
+export interface SemanticContent {
+  hero?: {
+    title?: string;
+    subtitle?: string;
+    description?: string;
+    primaryButton?: { text: string; url?: string };
+    secondaryButton?: { text: string; url?: string };
+    backgroundImage?: string;
+    backgroundVideo?: string;
+  };
+  features?: {
+    title?: string;
+    subtitle?: string;
+    features: Array<{
+      title?: string;
+      description?: string;
+      icon?: string;
+      image?: string;
+    }>;
+  };
+  pricing?: {
+    title?: string;
+    subtitle?: string;
+    plans: Array<{
+      name?: string;
+      price?: string;
+      period?: string;
+      description?: string;
+      features: string[];
+      button?: { text: string; url?: string; highlighted?: boolean };
+      popular?: boolean;
+    }>;
+  };
+  testimonials?: {
+    title?: string;
+    subtitle?: string;
+    testimonials: Array<{
+      name?: string;
+      role?: string;
+      company?: string;
+      content?: string;
+      avatar?: string;
+      rating?: number;
+    }>;
+  };
+  navigation?: any; // Placeholder
+  footer?: any; // Placeholder
+  contact?: any; // Placeholder
+  about?: any; // Placeholder
+  stats?: any; // Placeholder
+}
+
 export interface AnalysisResult {
   designTokens: DesignTokenSummary;
   contentSlices: ContentSlice[];
+  semanticContent: SemanticContent;
   themeTokens: ThemeTokens;
   colorPalette?: ColorPalette;
 }
@@ -73,6 +142,9 @@ export const analyzeDesignSystem = (input: z.infer<typeof analyzerInputSchema>):
     contentSlices.push(...slices);
   }
 
+  // Extract semantic content from HTML
+  const semanticContent = input.html ? extractSemanticContent(input.html) : {};
+
   // Generate theme tokens from color palette
   const themeTokens: ThemeTokens = {
     colors: colorAnalysis.palette.primary,
@@ -86,6 +158,7 @@ export const analyzeDesignSystem = (input: z.infer<typeof analyzerInputSchema>):
   return {
     designTokens,
     contentSlices,
+    semanticContent,
     themeTokens,
     colorPalette: colorAnalysis.palette
   };
@@ -93,6 +166,98 @@ export const analyzeDesignSystem = (input: z.infer<typeof analyzerInputSchema>):
 
 // Alias for analyzeDesignSystem to maintain backward compatibility
 export const analyzePage = analyzeDesignSystem;
+
+/**
+ * Extract semantic content from HTML using specialized parsers
+ */
+export function extractSemanticContent(html: string): SemanticContent {
+  const semanticContent: SemanticContent = {};
+
+  try {
+    // Extract hero content
+    const heroSections = findHeroSections(html);
+    if (heroSections.length > 0) {
+      const hero = heroSections[0];
+      semanticContent.hero = {
+        title: hero.title,
+        subtitle: hero.subtitle,
+        description: hero.description,
+        primaryButton: hero.primaryButton,
+        secondaryButton: hero.secondaryButton,
+        backgroundImage: undefined, // Would need additional parsing
+        backgroundVideo: undefined  // Would need additional parsing
+      };
+    }
+
+    // Extract features content
+    const featuresSections = findFeaturesSections(html);
+    if (featuresSections.length > 0) {
+      const featuresSection = featuresSections[0];
+      semanticContent.features = {
+        title: featuresSection.title,
+        subtitle: featuresSection.subtitle,
+        features: featuresSection.features.map(f => ({
+          title: f.title,
+          description: f.description,
+          icon: f.icon,
+          image: f.image
+        }))
+      };
+    }
+
+    // Extract pricing content
+    const pricingSections = findPricingSections(html);
+    if (pricingSections.length > 0) {
+      const pricingSection = pricingSections[0];
+      // Only include pricing content if we have at least one plan
+      if (pricingSection.plans.length > 0) {
+        semanticContent.pricing = {
+          title: pricingSection.title,
+          subtitle: pricingSection.subtitle,
+          plans: pricingSection.plans.map(p => ({
+            name: p.name,
+            price: p.price,
+            period: p.period,
+            description: p.description,
+            features: p.features,
+            button: p.button,
+            popular: p.popular
+          }))
+        };
+      }
+    }
+
+    // Extract testimonials content
+    const testimonialsSections = findTestimonialsSections(html);
+    if (testimonialsSections.length > 0) {
+      const testimonialsSection = testimonialsSections[0];
+      // Only include testimonials content if we have at least one testimonial
+      if (testimonialsSection.testimonials.length > 0) {
+        semanticContent.testimonials = {
+          title: testimonialsSection.title,
+          subtitle: testimonialsSection.subtitle,
+          testimonials: testimonialsSection.testimonials.map(t => ({
+            name: t.name,
+            role: t.role,
+            company: t.company,
+            content: t.content,
+            avatar: t.avatar,
+            rating: t.rating
+          }))
+        };
+      }
+    }
+
+    // TODO: Add parsers for navigation, footer, contact, about, stats
+    // These would follow similar patterns to the ones above
+
+  } catch (error) {
+    console.warn('Error extracting semantic content:', error);
+    // Return empty semantic content on error to avoid breaking the analysis
+  }
+
+  return semanticContent;
+}
 
 export function extractContentSlices(html: string): ContentSlice[] {
   // Simple content slice extraction - this could be much more sophisticated

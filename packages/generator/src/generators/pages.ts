@@ -28,7 +28,3 @@ export default function Page() {
 `;
 }
 
-export function generatePageComponentFromAI(page: { url: string; title?: string; path: string }, aiContent: string): string {
-  // Return the AI-generated content directly
-  return aiContent;
-}

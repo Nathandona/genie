@@ -31,126 +31,224 @@ export const createAnthropicClient = (config: AnthropicConfig) => {
   return new Anthropic({ apiKey: parsed.apiKey });
 };
 
-export interface GeminiClient {
-  generateContent(request: ContentGenerationRequest): Promise<ContentGenerationResponse>;
+
+// New component-based interfaces
+export interface ComponentSelectionRequest {
+  semanticContent: Record<string, unknown>; // Extracted semantic content from analyzer
+  componentRegistry: ComponentRegistryInfo; // Available components
+  context?: {
+    pageSummary?: PageSummary;
+    themeTokens?: ThemeTokens;
+  };
 }
 
-export interface ContentGenerationRequest {
-  pageSummary: PageSummary;
-  contentSlices: ContentSlice[];
-  themeTokens: ThemeTokens;
-  templateStructure: string; // The shadcn template structure
-  navigation?: Array<{ url: string; text: string }>;
+export interface ComponentMatch {
+  componentId: string;
+  componentType: string;
+  confidence: number; // 0-1 score
+  reasoning: string;
+  contentMapping: Record<string, unknown>; // How semantic content maps to component props
 }
 
-export interface ContentGenerationResponse {
-  generatedContent: string; // JSX/TSX content for the page
+export interface ComponentSelectionResponse {
+  matches: ComponentMatch[];
   metadata?: Record<string, unknown>;
 }
 
-export const createGeminiClient = (config: GeminiConfig): GeminiClient => {
-  const parsed = geminiConfigSchema.parse(config);
-  const genAI = new GoogleGenerativeAI(parsed.apiKey);
-  const model = genAI.getGenerativeModel({ 
-    model: 'gemini-2.0-flash-exp',
-    systemInstruction: `You are a React/Next.js developer expert. Generate production-ready JSX/TSX code for Next.js 16 App Router using shadcn/ui components.
-Your output should be valid TypeScript React code that can be directly used in a Next.js page component.
-Use Tailwind CSS classes for styling. Follow the provided template structure and incorporate the theme tokens.
+export interface ComponentRegistryInfo {
+  availableComponents: Array<{
+    id: string;
+    type: string;
+    name: string;
+    description: string;
+    schema: Record<string, unknown>; // Zod schema info
+  }>;
+}
 
-IMPORTANT: Never use toast notifications or alert components. Focus on displaying content using cards, buttons, and other UI components for a clean, static design.
+// Export new component selection functions
+export { fallbackComponentSelection };
 
-Return ONLY the JSX/TSX code without markdown code blocks or explanations.`
-  });
 
-  return {
-    async generateContent(request: ContentGenerationRequest): Promise<ContentGenerationResponse> {
-      const prompt = buildContentGenerationPrompt(request);
+function buildComponentSelectionPrompt(request: ComponentSelectionRequest): string {
+  const { semanticContent, componentRegistry, context } = request;
 
-      try {
-        const result = await model.generateContent(prompt);
-        const response = result.response;
-        const generatedContent = response.text() || '';
-
-        if (!generatedContent) {
-          throw new Error('No content generated from Gemini');
-        }
-
-        // Clean up markdown code blocks if present
-        const cleanedContent = generatedContent
-          .replace(/^```(?:tsx?|jsx?)?\n/gm, '')
-          .replace(/```$/gm, '')
-          .trim();
-
-        return {
-          generatedContent: cleanedContent,
-          metadata: {
-            model: 'gemini-2.0-flash-exp',
-            tokensUsed: response.usageMetadata?.totalTokenCount
-          }
-        };
-      } catch (error) {
-        console.error('Gemini content generation error:', error);
-        throw error;
-      }
-    }
-  };
-};
-
-function buildContentGenerationPrompt(request: ContentGenerationRequest): string {
-  const { pageSummary, contentSlices, themeTokens, templateStructure, navigation } = request;
-
-  const contentContext = contentSlices
-    .slice(0, 20) // Limit to top 20 slices
-    .map(slice => {
-      switch (slice.type) {
-        case 'heading':
-          return `Heading (${slice.metadata?.level || 'h1'}): ${slice.content}`;
-        case 'paragraph':
-          return `Paragraph: ${slice.content}`;
-        case 'list':
-          return `List: ${slice.content}`;
-        case 'quote':
-          return `Quote: ${slice.content}`;
-        case 'button':
-          return `Button: ${slice.content}`;
-        default:
-          return `${slice.type}: ${slice.content}`;
-      }
-    })
+  const semanticContentStr = Object.entries(semanticContent)
+    .filter(([_, value]) => value !== undefined)
+    .map(([key, value]) => `${key}: ${JSON.stringify(value, null, 2)}`)
     .join('\n\n');
 
-  return `Generate a Next.js 16 page component using shadcn/ui components.
+  const availableComponentsStr = componentRegistry.availableComponents
+    .map(comp => `- ${comp.id} (${comp.type}): ${comp.description}`)
+    .join('\n');
 
-Page Information:
-- Title: ${pageSummary.title || 'Untitled'}
-- Main Heading: ${pageSummary.mainHeading || 'N/A'}
-- Description: ${pageSummary.metaDescription || 'N/A'}
-- Content Preview: ${pageSummary.contentPreview || 'N/A'}
+  return `You are a component selection engine for Genie. Analyze the extracted semantic content from a website and select the best UI components from our registry to represent that content.
 
-Theme Tokens:
-- Colors: ${themeTokens.colors.join(', ') || 'Default'}
-- Fonts: ${themeTokens.fonts.join(', ') || 'System default'}
-- Spacing Scale: ${themeTokens.spacingScale.slice(0, 10).join(', ') || 'Default'}
-- Required Components: ${themeTokens.requiredComponents?.join(', ') || 'None'}
+Semantic Content Extracted from Website:
+${semanticContentStr || 'No semantic content extracted'}
 
-${navigation && navigation.length > 0 ? `Navigation Links:\n${navigation.map(link => `- ${link.text}: ${link.url}`).join('\n')}\n\n` : ''}
+Available UI Components:
+${availableComponentsStr}
 
-Original Content Context:
-${contentContext || 'No specific content provided'}
+Context Information:
+${context?.pageSummary ? `Page: ${context.pageSummary.title || 'Untitled'}` : ''}
+${context?.themeTokens ? `Theme: ${context.themeTokens.colors.join(', ')}` : ''}
 
-Template Structure:
-${templateStructure}
+Task: For each piece of semantic content, select the most appropriate component from our registry. Consider:
+1. Content type and structure match
+2. Component purpose and capabilities
+3. How well the content fits the component's interface
 
-Generate a complete page component that:
-1. Uses the provided shadcn/ui components from the template
-2. Incorporates the theme tokens (colors, fonts, spacing)
-3. Includes relevant content from the original page
-4. Maintains semantic HTML structure
-5. Uses Tailwind CSS classes
-6. Is production-ready and follows Next.js 16 App Router conventions
-7. NEVER uses toast notifications or alert components - focus on clean, static content display
+Return a JSON object with this structure:
+{
+  "matches": [
+    {
+      "componentId": "hero-default",
+      "componentType": "hero",
+      "confidence": 0.95,
+      "reasoning": "This hero section has title, subtitle, and buttons that perfectly match the hero component interface",
+      "contentMapping": {
+        "title": "Welcome to Our Platform",
+        "subtitle": "subtitle from semantic content",
+        "description": "description from semantic content",
+        "primaryButton": {"text": "Get Started", "url": "/signup"}
+      }
+    }
+  ]
+}
 
-Return ONLY the JSX/TSX code without any markdown formatting or explanations.`;
+Guidelines:
+- confidence should be 0-1 (higher for better matches)
+- Only include matches with confidence > 0.3
+- contentMapping should show how semantic content maps to component props
+- reasoning should explain why this component was selected
+- Return only valid JSON, no markdown formatting`;
+}
+
+function fallbackComponentSelection(request: ComponentSelectionRequest): ComponentSelectionResponse {
+  const { semanticContent } = request;
+  const matches: ComponentMatch[] = [];
+
+  // Rule-based fallback selection
+  if (semanticContent.hero) {
+    matches.push({
+      componentId: 'hero-default',
+      componentType: 'hero',
+      confidence: 0.8,
+      reasoning: 'Hero content detected, using default hero component',
+      contentMapping: semanticContent.hero as Record<string, unknown>
+    });
+  }
+
+  if (semanticContent.features) {
+    matches.push({
+      componentId: 'features-grid',
+      componentType: 'features',
+      confidence: 0.8,
+      reasoning: 'Features content detected, using grid layout component',
+      contentMapping: semanticContent.features as Record<string, unknown>
+    });
+  }
+
+  if (semanticContent.pricing) {
+    matches.push({
+      componentId: 'pricing-cards',
+      componentType: 'pricing',
+      confidence: 0.8,
+      reasoning: 'Pricing content detected, using card layout component',
+      contentMapping: semanticContent.pricing as Record<string, unknown>
+    });
+  }
+
+  if (semanticContent.testimonials) {
+    matches.push({
+      componentId: 'testimonials-grid',
+      componentType: 'testimonials',
+      confidence: 0.8,
+      reasoning: 'Testimonials content detected, using grid layout component',
+      contentMapping: semanticContent.testimonials as Record<string, unknown>
+    });
+  }
+
+  return {
+    matches,
+    metadata: { fallback: true, ruleBased: true }
+  };
+}
+
+/**
+ * Utility function to create a ComponentSelectionRequest from analysis results
+ */
+export function createComponentSelectionRequest(
+  semanticContent: Record<string, unknown>,
+  pageSummary?: PageSummary,
+  themeTokens?: ThemeTokens
+): ComponentSelectionRequest {
+  // Import component registry info dynamically to avoid circular dependencies
+  const componentRegistry: ComponentRegistryInfo = {
+    availableComponents: [
+      { id: 'hero-default', type: 'hero', name: 'Hero Section', description: 'Main hero section with title and CTA', schema: {} },
+      { id: 'features-grid', type: 'features', name: 'Features Grid', description: 'Grid layout for feature highlights', schema: {} },
+      { id: 'pricing-cards', type: 'pricing', name: 'Pricing Cards', description: 'Pricing plans in card format', schema: {} },
+      { id: 'testimonials-grid', type: 'testimonials', name: 'Testimonials Grid', description: 'Customer testimonials in grid', schema: {} },
+      { id: 'footer-multi-column', type: 'footer', name: 'Footer', description: 'Multi-column footer with links', schema: {} },
+      { id: 'navigation-horizontal', type: 'navigation', name: 'Navigation', description: 'Horizontal navigation bar', schema: {} },
+      { id: 'contact-form-left', type: 'contact', name: 'Contact Form', description: 'Contact form with company info', schema: {} },
+      { id: 'about-split', type: 'about', name: 'About Section', description: 'About section with image and content', schema: {} },
+      { id: 'stats-grid', type: 'stats', name: 'Stats Grid', description: 'Statistics and metrics display', schema: {} }
+    ]
+  };
+
+  return {
+    semanticContent,
+    componentRegistry,
+    context: {
+      pageSummary,
+      themeTokens
+    }
+  };
+}
+
+/**
+ * Enhanced component selection with confidence scoring
+ */
+export function selectComponentsWithConfidence(
+  semanticContent: Record<string, unknown>,
+  availableComponents: ComponentRegistryInfo
+): ComponentMatch[] {
+  const matches: ComponentMatch[] = [];
+
+  // Direct mapping for known semantic content types
+  const contentTypeMappings = {
+    hero: 'hero-default',
+    features: 'features-grid',
+    pricing: 'pricing-cards',
+    testimonials: 'testimonials-grid',
+    navigation: 'navigation-horizontal',
+    footer: 'footer-multi-column',
+    contact: 'contact-form-left',
+    about: 'about-split',
+    stats: 'stats-grid'
+  };
+
+  Object.entries(semanticContent).forEach(([contentType, content]) => {
+    if (content && contentTypeMappings[contentType as keyof typeof contentTypeMappings]) {
+      const componentId = contentTypeMappings[contentType as keyof typeof contentTypeMappings];
+      const component = availableComponents.availableComponents.find(c => c.id === componentId);
+
+      if (component) {
+        matches.push({
+          componentId,
+          componentType: contentType,
+          confidence: 0.9, // High confidence for direct semantic matches
+          reasoning: `Direct match: ${contentType} content maps perfectly to ${component.name}`,
+          contentMapping: content as Record<string, unknown>
+        });
+      }
+    }
+  });
+
+  // Sort by confidence
+  return matches.sort((a, b) => b.confidence - a.confidence);
 }
 
 export interface LayoutInferenceRequest {

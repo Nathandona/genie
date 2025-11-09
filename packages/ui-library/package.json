@@ -1,18 +1,17 @@
 {
-  "name": "@genie/analyzer",
+  "name": "@genie/ui-library",
   "version": "0.1.0",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
   "exports": {
     ".": {
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.js",
       "require": "./dist/index.cjs"
     }
   },
-  "files": [
-    "dist"
-  ],
+  "files": ["dist"],
   "scripts": {
     "build": "npx tsup src/index.ts --format esm,cjs --dts",
     "dev": "npx tsup src/index.ts --format esm,cjs --dts --watch",
@@ -22,12 +21,7 @@
   },
   "dependencies": {
     "@genie/shared": "workspace:^0.1.0",
-    "@genie/ui-library": "workspace:^0.1.0",
     "@types/node": "^20.14.9",
-    "cheerio": "^1.1.2",
-    "colord": "^2.9.3",
-    "postcss": "^8.4.41",
-    "postcss-value-parser": "^4.2.0",
     "tsup": "^8.1.0",
     "zod": "^3.23.8"
   },
