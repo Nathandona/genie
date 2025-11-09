@@ -25,3 +25,11 @@ export { generatePageComponent } from './generators/pages.js';
 
 // Re-export detectors
 export { detectShadcnComponentsFromPages } from './detectors/components.js';
+
+// Re-export component inclusion utilities
+export {
+  getRequiredComponents,
+  getComponentDependencies,
+  includeRequiredComponents,
+  updatePackageJsonWithComponentDeps
+} from './utils/component-inclusion.js';

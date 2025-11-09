@@ -37,7 +37,7 @@ export function createHeroComponent(content: HeroContent, options?: { variant?: 
 <section class="relative py-20 lg:py-32 ${backgroundImage ? 'bg-cover bg-center' : 'bg-gradient-to-br from-primary/5 to-secondary/5'} ${className}" ${backgroundStyle}>
   <div class="container mx-auto px-4 text-center">
     ${subtitle ? `<p class="text-lg text-muted-foreground mb-4">${subtitle}</p>` : ''}
-    <h1 className="text-4xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
+    <h1 class="text-4xl lg:text-6xl font-bold mb-6 bg-gradient-to-r from-primary to-primary/70 bg-clip-text text-transparent">
       ${title}
     </h1>
     ${description ? `<p class="text-xl text-muted-foreground mb-8 max-w-2xl mx-auto">${description}</p>` : ''}

@@ -1,0 +1,150 @@
+{
+  "version": "1.0.0",
+  "description": "Manifest of pre-installed shadcn/ui components and their dependencies",
+  "components": {
+    "badge": {
+      "files": ["components/ui/badge.tsx"],
+      "dependencies": [],
+      "description": "Badge component for displaying status or labels"
+    },
+    "button": {
+      "files": ["components/ui/button.tsx"],
+      "dependencies": ["@radix-ui/react-slot"],
+      "description": "Button component with variants and sizes"
+    },
+    "calendar": {
+      "files": ["components/ui/calendar.tsx"],
+      "dependencies": ["react-day-picker", "date-fns", "lucide-react"],
+      "description": "Calendar component for date selection"
+    },
+    "card": {
+      "files": ["components/ui/card.tsx"],
+      "dependencies": [],
+      "description": "Card component for content containers"
+    },
+    "checkbox": {
+      "files": ["components/ui/checkbox.tsx"],
+      "dependencies": ["@radix-ui/react-checkbox"],
+      "description": "Checkbox input component"
+    },
+    "collapsible": {
+      "files": ["components/ui/collapsible.tsx"],
+      "dependencies": ["@radix-ui/react-collapsible", "lucide-react"],
+      "description": "Collapsible content component"
+    },
+    "command": {
+      "files": ["components/ui/command.tsx"],
+      "dependencies": ["cmdk"],
+      "description": "Command palette component"
+    },
+    "dialog": {
+      "files": ["components/ui/dialog.tsx"],
+      "dependencies": ["@radix-ui/react-dialog"],
+      "description": "Modal dialog component"
+    },
+    "form": {
+      "files": ["components/ui/form.tsx"],
+      "dependencies": ["react-hook-form", "@hookform/resolvers", "zod"],
+      "description": "Form component with validation"
+    },
+    "hover-card": {
+      "files": ["components/ui/hover-card.tsx"],
+      "dependencies": ["@radix-ui/react-hover-card"],
+      "description": "Hover card component"
+    },
+    "input": {
+      "files": ["components/ui/input.tsx"],
+      "dependencies": [],
+      "description": "Input field component"
+    },
+    "label": {
+      "files": ["components/ui/label.tsx"],
+      "dependencies": ["@radix-ui/react-label"],
+      "description": "Label component for form fields"
+    },
+    "navigation-menu": {
+      "files": ["components/ui/navigation-menu.tsx"],
+      "dependencies": ["@radix-ui/react-navigation-menu"],
+      "description": "Navigation menu component"
+    },
+    "popover": {
+      "files": ["components/ui/popover.tsx"],
+      "dependencies": ["@radix-ui/react-popover"],
+      "description": "Popover component"
+    },
+    "progress": {
+      "files": ["components/ui/progress.tsx"],
+      "dependencies": ["@radix-ui/react-progress"],
+      "description": "Progress bar component"
+    },
+    "radio-group": {
+      "files": ["components/ui/radio-group.tsx"],
+      "dependencies": ["@radix-ui/react-radio-group"],
+      "description": "Radio button group component"
+    },
+    "scroll-area": {
+      "files": ["components/ui/scroll-area.tsx"],
+      "dependencies": ["@radix-ui/react-scroll-area"],
+      "description": "Scroll area component"
+    },
+    "select": {
+      "files": ["components/ui/select.tsx"],
+      "dependencies": ["@radix-ui/react-select"],
+      "description": "Select dropdown component"
+    },
+    "separator": {
+      "files": ["components/ui/separator.tsx"],
+      "dependencies": ["@radix-ui/react-separator"],
+      "description": "Separator component"
+    },
+    "sheet": {
+      "files": ["components/ui/sheet.tsx"],
+      "dependencies": ["@radix-ui/react-dialog"],
+      "description": "Sheet/drawer component"
+    },
+    "skeleton": {
+      "files": ["components/ui/skeleton.tsx"],
+      "dependencies": [],
+      "description": "Skeleton loading component"
+    },
+    "slider": {
+      "files": ["components/ui/slider.tsx"],
+      "dependencies": ["@radix-ui/react-slider"],
+      "description": "Slider input component"
+    },
+    "switch": {
+      "files": ["components/ui/switch.tsx"],
+      "dependencies": ["@radix-ui/react-switch"],
+      "description": "Switch toggle component"
+    },
+    "tabs": {
+      "files": ["components/ui/tabs.tsx"],
+      "dependencies": ["@radix-ui/react-tabs"],
+      "description": "Tabs component"
+    },
+    "textarea": {
+      "files": ["components/ui/textarea.tsx"],
+      "dependencies": [],
+      "description": "Textarea input component"
+    },
+    "tooltip": {
+      "files": ["components/ui/tooltip.tsx"],
+      "dependencies": ["@radix-ui/react-tooltip"],
+      "description": "Tooltip component"
+    }
+  },
+  "sharedDependencies": {
+    "class-variance-authority": "All components",
+    "clsx": "All components",
+    "tailwind-merge": "All components",
+    "lucide-react": ["calendar", "collapsible", "command", "hover-card", "popover", "select", "sheet", "tabs", "tooltip"],
+    "react": "All components",
+    "react-dom": "All components"
+  },
+  "coreDependencies": {
+    "next": "Required for Next.js framework",
+    "typescript": "Required for TypeScript support",
+    "tailwindcss": "Required for styling",
+    "eslint": "Required for linting"
+  }
+}

@@ -11,6 +11,11 @@ import { generateNavigationComponent } from '../generators/navigation.js';
 import { generateFooterComponent, type FooterConfig } from '../generators/footer.js';
 import { generatePageComponent } from '../generators/pages.js';
 import { generateGlobalsCSS, generateCSSVariables, type ColorPalette } from '@genie/analyzer';
+import {
+  getRequiredComponents,
+  includeRequiredComponents,
+  updatePackageJsonWithComponentDeps
+} from '../utils/component-inclusion.js';
 
 export interface ProjectGenerationConfig {
   outputDir: string;
@@ -159,8 +164,16 @@ export const generateNextJSProjectFromComponents = async (config: ProjectGenerat
 
     pageContents.push({ path: page.path, content: pageContent! });
 
+    // Determine paths for page file
+    const isRootPage = page.path === '/';
+    const pageDir = isRootPage ? '' : page.path.slice(1);
+
+    // Create directory if needed
+    const pageDirectory = join(projectDir, 'app', pageDir);
+    await fs.ensureDir(pageDirectory);
+
     // Write page file
-    const pagePath = join(projectDir, 'app', page.path === '/' ? 'page.tsx' : `${page.path.slice(1)}/page.tsx`);
+    const pagePath = join(pageDirectory, 'page.tsx');
     await writeFile(pagePath, pageContent!);
     console.log(`✓ Generated component-based page: ${page.path}`);
   }
@@ -187,28 +200,40 @@ export const generateNextJSProjectFromComponents = async (config: ProjectGenerat
     pageContents.push({ path: 'components/footer.tsx', content: footerContent });
   }
 
-  // Step 4: Install detected shadcn components
-  const uniqueComponents = Array.from(detectedComponents).sort();
+  // Step 4: Include required shadcn components
+  const allPageContents = [...pageContents];
 
-  if (uniqueComponents.length > 0) {
-    console.log(`Installing ${uniqueComponents.length} shadcn components: ${uniqueComponents.join(', ')}`);
+  // Add navigation and footer content for component detection
+  if (navigation) {
+    allPageContents.push({ path: 'components/navigation.tsx', content: generateNavigationComponent(navigation) });
+  }
+  if (footer) {
+    allPageContents.push({ path: 'components/footer.tsx', content: generateFooterComponent(footer) });
+  }
 
-    // Install components one by one
-    for (const component of uniqueComponents) {
-      try {
-        console.log(`Installing shadcn component: ${component}...`);
-        await execCommand('pnpm', ['dlx', 'shadcn@latest', 'add', component, '-y'], {
-          cwd: projectDir,
-          timeout: 60_000
-        });
-        console.log(`✓ Installed shadcn component: ${component}`);
-      } catch (error: any) {
-        console.error(`Failed to install shadcn component ${component}:`, error);
-        // Continue with other components
-      }
+  // Detect required components from all generated content
+  const requiredComponents = getRequiredComponents(allPageContents);
+
+  if (requiredComponents.length > 0) {
+    console.log(`Including ${requiredComponents.length} shadcn components: ${requiredComponents.join(', ')}`);
+
+    // Get template directory path
+    const templateDir = join(process.cwd(), '../../apps/api/template');
+
+    try {
+      // Include required components by copying from template
+      await includeRequiredComponents(projectDir, templateDir, requiredComponents);
+
+      // Update package.json with component dependencies
+      await updatePackageJsonWithComponentDeps(projectDir, templateDir, requiredComponents);
+
+      console.log('✓ Component inclusion completed');
+    } catch (error: any) {
+      console.error('Failed to include shadcn components:', error);
+      // Continue with generation - components might not be critical for basic functionality
     }
   } else {
-    console.log('No additional shadcn components needed');
+    console.log('No shadcn components required');
   }
 
   // Step 5: Update README with project information
@@ -239,7 +264,7 @@ Open [http://localhost:3000](http://localhost:3000) with your browser to see the
 };
 
 /**
- * Generate a page component from component matches
+ * Generate a page component from component matches (client component)
  */
 function generatePageFromComponents(
   page: ProjectGenerationConfig['pages'][0],
@@ -269,24 +294,21 @@ function generatePageFromComponents(
     pageContent = '<div className="min-h-screen flex items-center justify-center">\n        <div className="text-center">\n          <h1 className="text-4xl font-bold mb-4">Welcome</h1>\n          <p className="text-xl text-muted-foreground">This page is being generated...</p>\n        </div>\n      </div>';
   }
 
-  // Create the full page layout
+  // Generate the complete Next.js page component with metadata (server component for metadata)
   const pageTitle = summary?.title || 'Page';
+  const pageDescription = summary?.metaDescription || 'Generated page';
 
-  // Generate the complete Next.js page component
-  return `'use client';
-
-import { Metadata } from 'next';
+  return `import type { Metadata } from 'next';
 
 export const metadata: Metadata = {
   title: '${pageTitle}',
-  description: '${summary?.metaDescription || 'Generated page'}',
+  description: '${pageDescription}',
 };
 
 export default function Page() {
   return (
-    <main className="min-h-screen">
-      ${pageContent}
-    </main>
+    <main className="min-h-screen" dangerouslySetInnerHTML={{ __html: \`${pageContent.replace(/`/g, '\\`')}\` }} />
   );
 }`;
 }
+
