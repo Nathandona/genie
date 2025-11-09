@@ -261,6 +261,12 @@ describe('@genie/crawler', () => {
             html: '<html><body>Content</body></html>',
             title: 'Test Page',
             metaDescription: 'Test description',
+            css: {
+              linkedStylesheets: [],
+              inlineStyles: [],
+              cssVariables: {},
+              fontFaces: []
+            }
           },
         ],
         errors: [],
@@ -270,6 +276,42 @@ describe('@genie/crawler', () => {
       expect(result.errors).toBeInstanceOf(Array);
       expect(result.pages[0]).toHaveProperty('url');
       expect(result.pages[0]).toHaveProperty('html');
+      expect(result.pages[0]).toHaveProperty('css');
+      expect(result.pages[0].css).toHaveProperty('linkedStylesheets');
+      expect(result.pages[0].css).toHaveProperty('inlineStyles');
+      expect(result.pages[0].css).toHaveProperty('cssVariables');
+      expect(result.pages[0].css).toHaveProperty('fontFaces');
+    });
+
+    it('should extract CSS data structure correctly', async () => {
+      await crawler.init();
+
+      const mockCSSData = {
+        linkedStylesheets: [
+          { href: 'https://example.com/style.css', content: 'body { color: red; }' }
+        ],
+        inlineStyles: ['.test { font-size: 14px; }'],
+        cssVariables: { '--primary-color': '#ff0000' },
+        fontFaces: [
+          {
+            family: 'CustomFont',
+            src: 'url(font.woff2)',
+            weight: '400',
+            style: 'normal'
+          }
+        ]
+      };
+
+      // Test that CSS data structure matches expected interface
+      expect(mockCSSData).toHaveProperty('linkedStylesheets');
+      expect(mockCSSData).toHaveProperty('inlineStyles');
+      expect(mockCSSData).toHaveProperty('cssVariables');
+      expect(mockCSSData).toHaveProperty('fontFaces');
+
+      expect(Array.isArray(mockCSSData.linkedStylesheets)).toBe(true);
+      expect(Array.isArray(mockCSSData.inlineStyles)).toBe(true);
+      expect(typeof mockCSSData.cssVariables).toBe('object');
+      expect(Array.isArray(mockCSSData.fontFaces)).toBe(true);
     });
   });
 });

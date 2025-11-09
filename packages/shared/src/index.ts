@@ -47,6 +47,22 @@ export interface PageSummary {
   wordCount?: number;
 }
 
+export interface CSSData {
+  linkedStylesheets: Array<{
+    href: string;
+    media?: string;
+    content?: string;
+  }>;
+  inlineStyles: string[];
+  cssVariables: Record<string, string>;
+  fontFaces: Array<{
+    family: string;
+    src: string;
+    weight?: string;
+    style?: string;
+  }>;
+}
+
 export interface ContentSlice {
   type: 'heading' | 'paragraph' | 'list' | 'quote' | 'code' | 'image' | 'button' | 'link';
   content: string;
