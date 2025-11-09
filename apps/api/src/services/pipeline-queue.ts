@@ -8,8 +8,9 @@ import { rm } from 'node:fs/promises';
 import archiver from 'archiver';
 import type { ProjectSettings } from '@genie/shared';
 import { SiteCrawler } from '@genie/crawler';
-import { analyzeDesignTokens } from '@genie/analyzer';
-import { generateNextJSProject } from '@genie/generator';
+import { analyzeDesignTokens, analyzePage, extractContentSlices } from '@genie/analyzer';
+import { generateNextJSProject, previewAndRefine } from '@genie/generator';
+import { createGeminiClient } from '@genie/ai-services';
 
 import { env } from '../env.js';
 import { prisma } from '../db/prisma.js';
@@ -143,7 +144,7 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
       });
     }
 
-    // Analyze design tokens from all pages in parallel
+    // Analyze design tokens and content slices from all pages in parallel
     const allDesignTokens = {
       colors: new Set<string>(),
       fonts: new Set<string>(),
@@ -153,13 +154,19 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
       requiredComponents: new Set<string>()
     };
 
-    // Parallel token extraction for faster processing
-    const tokenResults = await Promise.all(
-      crawlResult.pages.map((page) => analyzeDesignTokens({ html: page.html }))
+    // Also collect color palettes for enhanced theming
+    const allColorPalettes: Array<import('@genie/analyzer').ColorPalette> = [];
+
+    // Parallel analysis for faster processing
+    const analysisResults = await Promise.all(
+      crawlResult.pages.map((page) => analyzePage({ html: page.html }))
     );
 
-    // Combine all tokens
-    for (const tokens of tokenResults) {
+    // Combine all tokens and collect content slices
+    const pageContentSlices: Array<{ url: string; slices: ReturnType<typeof extractContentSlices> }> = [];
+
+    for (const analysis of analysisResults) {
+      const tokens = analysis.designTokens;
       tokens.colors.forEach((c: string) => allDesignTokens.colors.add(c));
       tokens.fonts.forEach((f: string) => allDesignTokens.fonts.add(f));
       tokens.spacingScale.forEach((s: number) => allDesignTokens.spacingScale.add(s));
@@ -172,6 +179,21 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
       if (tokens.requiredComponents) {
         tokens.requiredComponents.forEach((c: string) => allDesignTokens.requiredComponents.add(c));
       }
+
+      // Collect color palettes if available
+      if (analysis.colorPalette) {
+        allColorPalettes.push(analysis.colorPalette);
+      }
+    }
+
+    // Collect content slices per page
+    for (let i = 0; i < crawlResult.pages.length; i++) {
+      const page = crawlResult.pages[i];
+      const analysis = analysisResults[i];
+      pageContentSlices.push({
+        url: page.url,
+        slices: analysis.contentSlices
+      });
     }
 
     const combinedTokens = {
@@ -182,6 +204,9 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
       shadows: Array.from(allDesignTokens.shadows).slice(0, 10),
       requiredComponents: Array.from(allDesignTokens.requiredComponents)
     };
+
+    // Combine color palettes from all pages
+    const combinedColorPalette = combineColorPalettes(allColorPalettes);
 
     // Update pages with design tokens
     for (const page of crawlResult.pages) {
@@ -211,31 +236,161 @@ const processPipelineJob = async (job: Job<ProjectPipelineJobData>) => {
       data: { status: 'generating' }
     });
 
+    // Generate content using Gemini if API key is available
+    const geminiClient = env.GEMINI_API_KEY ? createGeminiClient({ apiKey: env.GEMINI_API_KEY }) : null;
+    const pagesWithGeneratedContent: Array<{
+      url: string;
+      title?: string;
+      html: string;
+      path: string;
+      summary?: { url: string; title?: string; metaDescription?: string; mainHeading?: string; contentPreview?: string };
+      contentSlices?: Array<{ type: string; content: string; metadata?: Record<string, unknown> }>;
+      generatedContent?: string;
+    }> = [];
+
+    if (geminiClient) {
+      // Generate content for each page using Gemini
+      for (let i = 0; i < crawlResult.pages.length; i++) {
+        const page = crawlResult.pages[i];
+        const urlObj = new URL(page.url);
+        const path = urlObj.pathname === '/' ? '/' : urlObj.pathname;
+        const contentSliceData = pageContentSlices.find(p => p.url === page.url);
+        
+        try {
+          // Create a template structure hint based on detected components
+          const templateStructure = `Use shadcn/ui components: ${combinedTokens.requiredComponents?.slice(0, 5).join(', ') || 'button, card'}`;
+          
+          const generated = await geminiClient.generateContent({
+            pageSummary: page.summary || {
+              url: page.url,
+              title: page.title,
+              metaDescription: page.metaDescription,
+              mainHeading: undefined,
+              contentPreview: undefined
+            },
+            contentSlices: contentSliceData?.slices || [],
+            themeTokens: {
+              colors: combinedTokens.colors,
+              fonts: combinedTokens.fonts,
+              spacingScale: combinedTokens.spacingScale,
+              borderRadius: combinedTokens.borderRadius,
+              shadows: combinedTokens.shadows,
+              requiredComponents: combinedTokens.requiredComponents
+            },
+            templateStructure,
+            navigation: crawlResult.navigation
+          });
+
+          pagesWithGeneratedContent.push({
+            url: page.url,
+            title: page.title,
+            html: page.html,
+            path,
+            summary: page.summary,
+            contentSlices: contentSliceData?.slices,
+            generatedContent: generated.generatedContent
+          });
+        } catch (error) {
+          console.warn(`Failed to generate content for ${page.url}:`, error);
+          // Fallback to page without AI-generated content
+          pagesWithGeneratedContent.push({
+            url: page.url,
+            title: page.title,
+            html: page.html,
+            path,
+            summary: page.summary,
+            contentSlices: contentSliceData?.slices
+          });
+        }
+      }
+    } else {
+      // No Gemini API key, use pages without generated content
+      pagesWithGeneratedContent.push(...crawlResult.pages.map((page: { url: string; title?: string; html: string; summary?: { url: string; title?: string; metaDescription?: string; mainHeading?: string; contentPreview?: string } }) => {
+        const urlObj = new URL(page.url);
+        const path = urlObj.pathname === '/' ? '/' : urlObj.pathname;
+        const contentSliceData = pageContentSlices.find(p => p.url === page.url);
+        return {
+          url: page.url,
+          title: page.title,
+          html: page.html,
+          path,
+          summary: page.summary,
+          contentSlices: contentSliceData?.slices
+        };
+      }));
+    }
+
     // Generate Next.js project
     const projectName = new URL(sourceUrl).hostname.replace('www.', '');
     const outputDir = join(tmpdir(), `genie-${projectId}`);
-    
-    const pagesForGeneration = crawlResult.pages.map((page: { url: string; title?: string; html: string }) => {
-      const urlObj = new URL(page.url);
-      const path = urlObj.pathname === '/' ? '/' : urlObj.pathname;
-      return {
-        url: page.url,
-        title: page.title,
-        html: page.html,
-        path
-      };
-    });
 
-    const generationResult = await generateNextJSProject({
-      outputDir,
-      projectName,
-      pages: pagesForGeneration,
-      designTokens: combinedTokens
-    });
+    console.log(`Starting Next.js project generation for ${projectName}...`);
+
+    let generationResult;
+    try {
+      generationResult = await generateNextJSProject({
+        outputDir,
+        projectName,
+        pages: pagesWithGeneratedContent,
+        designTokens: combinedTokens,
+        colorPalette: combinedColorPalette,
+        themeTokens: {
+          colors: combinedTokens.colors,
+          fonts: combinedTokens.fonts,
+          spacingScale: combinedTokens.spacingScale,
+          borderRadius: combinedTokens.borderRadius,
+          shadows: combinedTokens.shadows,
+          requiredComponents: combinedTokens.requiredComponents
+        },
+        navigation: crawlResult.navigation
+      });
+      console.log(`✓ Next.js project generation completed successfully`);
+    } catch (error) {
+      console.error(`Failed to generate Next.js project:`, error);
+      throw error;
+    }
+
+    // Use the actual project directory created by pnpm create next-app
+    const projectDir = join(outputDir, generationResult.projectDir);
+    console.log(`Project directory: ${projectDir}`);
+
+    // Preview and refine with Gemini if available
+    if (geminiClient) {
+      try {
+        const refinedPages = await previewAndRefine({
+          projectDir,
+          projectId,
+          pages: pagesWithGeneratedContent.map(p => ({
+            url: p.url,
+            path: p.path,
+            generatedContent: p.generatedContent
+          })),
+          designTokens: combinedTokens,
+          geminiClient
+        });
+
+        // Update refined pages in the project
+        if (refinedPages.length > 0) {
+          const { writeFile } = await import('node:fs/promises');
+          for (const refined of refinedPages) {
+            const pagePath = refined.path === '/' ? 'app/page.tsx' : `app${refined.path}/page.tsx`;
+            const fullPath = join(outputDir, pagePath);
+            try {
+              await writeFile(fullPath, refined.refinedContent, 'utf8');
+            } catch (error) {
+              console.warn(`Failed to write refined content to ${pagePath}:`, error);
+            }
+          }
+        }
+      } catch (error) {
+        console.warn(`Preview and refine failed, continuing with original content:`, error);
+        // Continue with original content if refinement fails
+      }
+    }
 
     // Create ZIP file (optimized streaming)
     const zipPath = join(tmpdir(), `genie-${projectId}.zip`);
-    await createZipArchive(outputDir, zipPath);
+    await createZipArchive(projectDir, zipPath);
 
     // Calculate file size
     const { statSync } = await import('node:fs');
@@ -342,13 +497,86 @@ async function createZipArchive(sourceDir: string, outputPath: string): Promise<
     });
 
     archive.pipe(output);
+    // Include all files except node_modules
+    // archiver.directory will include everything, we'll filter via glob pattern
     archive.directory(sourceDir, false);
     archive.finalize();
   });
 }
 
+function combineColorPalettes(palettes: Array<import('@genie/analyzer').ColorPalette>): import('@genie/analyzer').ColorPalette | undefined {
+  if (palettes.length === 0) return undefined;
+
+  // Start with the first palette as base
+  const combined: import('@genie/analyzer').ColorPalette = {
+    primary: [...palettes[0].primary],
+    secondary: [...palettes[0].secondary],
+    accent: [...palettes[0].accent],
+    neutral: [...palettes[0].neutral],
+    semantic: {
+      success: [...palettes[0].semantic.success],
+      warning: [...palettes[0].semantic.warning],
+      error: [...palettes[0].semantic.error],
+      info: [...palettes[0].semantic.info]
+    },
+    background: [...palettes[0].background],
+    text: [...palettes[0].text]
+  };
+
+  // Merge colors from other palettes, avoiding duplicates
+  for (let i = 1; i < palettes.length; i++) {
+    const palette = palettes[i];
+
+    // Merge arrays and deduplicate
+    combined.primary.push(...palette.primary.filter(c => !combined.primary.includes(c)));
+    combined.secondary.push(...palette.secondary.filter(c => !combined.secondary.includes(c)));
+    combined.accent.push(...palette.accent.filter(c => !combined.accent.includes(c)));
+    combined.neutral.push(...palette.neutral.filter(c => !combined.neutral.includes(c)));
+    combined.background.push(...palette.background.filter(c => !combined.background.includes(c)));
+    combined.text.push(...palette.text.filter(c => !combined.text.includes(c)));
+
+    // Merge semantic colors
+    combined.semantic.success.push(...palette.semantic.success.filter(c => !combined.semantic.success.includes(c)));
+    combined.semantic.warning.push(...palette.semantic.warning.filter(c => !combined.semantic.warning.includes(c)));
+    combined.semantic.error.push(...palette.semantic.error.filter(c => !combined.semantic.error.includes(c)));
+    combined.semantic.info.push(...palette.semantic.info.filter(c => !combined.semantic.info.includes(c)));
+  }
+
+  // Limit each category to a reasonable number
+  combined.primary = combined.primary.slice(0, 3);
+  combined.secondary = combined.secondary.slice(0, 3);
+  combined.accent = combined.accent.slice(0, 2);
+  combined.neutral = combined.neutral.slice(0, 4);
+  combined.background = combined.background.slice(0, 3);
+  combined.text = combined.text.slice(0, 3);
+  combined.semantic.success = combined.semantic.success.slice(0, 2);
+  combined.semantic.warning = combined.semantic.warning.slice(0, 2);
+  combined.semantic.error = combined.semantic.error.slice(0, 2);
+  combined.semantic.info = combined.semantic.info.slice(0, 2);
+
+  return combined;
+}
+
 export const pipelineWorker = new Worker<ProjectPipelineJobData>('project-pipeline', processPipelineJob, {
   connection: workerRedis
+});
+
+pipelineWorker.on('ready', () => {
+  if (env.NODE_ENV !== 'test') {
+    console.log('Pipeline worker ready and listening for jobs');
+  }
+});
+
+pipelineWorker.on('active', (job) => {
+  if (env.NODE_ENV !== 'test') {
+    console.log(`Pipeline job ${job.id} started processing`);
+  }
+});
+
+pipelineWorker.on('completed', (job) => {
+  if (env.NODE_ENV !== 'test') {
+    console.log(`Pipeline job ${job.id} completed successfully`);
+  }
 });
 
 pipelineWorker.on('error', (error) => {

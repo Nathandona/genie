@@ -6,18 +6,15 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Badge } from "@/components/ui/badge"
 import {
   CheckCircle2,
-  ChevronLeft,
-  ChevronRight,
   Clock,
+  Zap,
   Code,
   Download,
   ExternalLink,
-  Eye,
   FileCode,
   Layout,
   Loader2,
   Share2,
-  Zap,
 } from "lucide-react"
 import { useSearchParams } from "next/navigation"
 import Link from "next/link"
@@ -27,7 +24,6 @@ interface PagePreview {
   id: string
   name: string
   path: string
-  previewIcon: string
   title: string | null
   url: string
   metaDescription: string | null
@@ -47,19 +43,6 @@ function safeParseUrl(rawUrl: string | null | undefined): URL | null {
   }
 }
 
-function getPageEmoji(path: string): string {
-  const value = path.toLowerCase()
-  if (value === "/" || value === "") return "🏠"
-  if (value.includes("about")) return "ℹ️"
-  if (value.includes("service")) return "🛠️"
-  if (value.includes("product")) return "🛍️"
-  if (value.includes("contact")) return "📧"
-  if (value.includes("blog")) return "📝"
-  if (value.includes("portfolio")) return "🎨"
-  if (value.includes("team")) return "👥"
-  if (value.includes("pricing")) return "💲"
-  return "📄"
-}
 
 function toDisplayName(source: string): string {
   const parts = source
@@ -79,7 +62,6 @@ function convertPage(apiPage: ApiPage): PagePreview {
     id: apiPage.id,
     name: computedName,
     path,
-    previewIcon: getPageEmoji(path),
     title: apiPage.title,
     url: parsedUrl?.href || apiPage.url,
     metaDescription: apiPage.metaDescription,
@@ -131,17 +113,10 @@ function ResultsPageContent() {
   const [project, setProject] = useState<ApiProject | null>(null)
   const [pages, setPages] = useState<PagePreview[]>([])
   const [downloadInfo, setDownloadInfo] = useState<DownloadInfo | null>(null)
-  const [currentComparison, setCurrentComparison] = useState(0)
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [isDownloading, setIsDownloading] = useState(false)
-  const [previewUrl, setPreviewUrl] = useState<string | null>(null)
-  const [isStartingPreview, setIsStartingPreview] = useState(false)
-  const [isStoppingPreview, setIsStoppingPreview] = useState(false)
 
-  useEffect(() => {
-    setCurrentComparison(0)
-  }, [projectId])
 
   useEffect(() => {
     if (!projectId) {
@@ -159,11 +134,10 @@ function ResultsPageContent() {
         setIsLoading(true)
         setError(null)
 
-        const [projectData, apiPages, downloadData, previewStatus] = await Promise.all([
+        const [projectData, apiPages, downloadData] = await Promise.all([
           apiClient.getProject(id),
           apiClient.getProjectPages(id),
           apiClient.getDownloadInfo(id).catch(() => null),
-          apiClient.getPreviewStatus(id).catch(() => null),
         ])
 
         if (!isMounted) return
@@ -171,9 +145,6 @@ function ResultsPageContent() {
         setProject(projectData)
         setPages(apiPages.map(convertPage))
         setDownloadInfo(downloadData)
-        if (previewStatus) {
-          setPreviewUrl(previewStatus.url)
-        }
       } catch (err) {
         console.error("Failed to fetch project data:", err)
         if (!isMounted) return
@@ -191,13 +162,6 @@ function ResultsPageContent() {
       isMounted = false
     }
   }, [projectId])
-
-  useEffect(() => {
-    setCurrentComparison((prev) => {
-      if (pages.length === 0) return 0
-      return prev >= pages.length ? 0 : prev
-    })
-  }, [pages])
 
   const stats = useMemo(() => {
     const pageTotal = project?.pageCount ?? pages.length
@@ -301,35 +265,6 @@ function ResultsPageContent() {
     }
   }
 
-  const handleStartPreview = async () => {
-    if (!projectId) return
-    
-    try {
-      setIsStartingPreview(true)
-      const result = await apiClient.startPreview(projectId)
-      setPreviewUrl(result.url)
-    } catch (err) {
-      console.error("Failed to start preview:", err)
-      alert(err instanceof Error ? err.message : "Failed to start preview")
-    } finally {
-      setIsStartingPreview(false)
-    }
-  }
-
-  const handleStopPreview = async () => {
-    if (!projectId) return
-    
-    try {
-      setIsStoppingPreview(true)
-      await apiClient.stopPreview(projectId)
-      setPreviewUrl(null)
-    } catch (err) {
-      console.error("Failed to stop preview:", err)
-      alert(err instanceof Error ? err.message : "Failed to stop preview")
-    } finally {
-      setIsStoppingPreview(false)
-    }
-  }
 
   if (isLoading) {
     return (
@@ -457,219 +392,6 @@ function ResultsPageContent() {
           </Card>
         </div>
 
-        <div className="mx-auto mb-12 max-w-7xl">
-          <Card>
-            <CardHeader>
-              <div className="flex items-center justify-between">
-                <div>
-                  <CardTitle>Before & After</CardTitle>
-                  <CardDescription>Compare original website vs. generated Next.js project</CardDescription>
-                </div>
-                {pages.length > 1 && (
-                  <div className="flex items-center gap-2">
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      if (pages.length === 0) return
-                        setCurrentComparison((prev) => (prev - 1 + pages.length) % pages.length)
-                    }}
-                    disabled={pages.length === 0}
-                  >
-                    <ChevronLeft className="h-4 w-4" />
-                  </Button>
-                    <Badge variant="outline" className="min-w-[80px] text-center">
-                      {pages.length > 0 ? `${currentComparison + 1} / ${pages.length}` : "0 / 0"}
-                    </Badge>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={() => {
-                      if (pages.length === 0) return
-                        setCurrentComparison((prev) => (prev + 1) % pages.length)
-                    }}
-                    disabled={pages.length === 0}
-                  >
-                    <ChevronRight className="h-4 w-4" />
-                  </Button>
-                </div>
-                )}
-              </div>
-            </CardHeader>
-            <CardContent>
-              {pages.length > 0 ? (
-                <>
-                  <div className="mb-4 flex flex-col gap-3 rounded-lg bg-muted/40 p-4 sm:flex-row sm:items-center sm:justify-between">
-                    <div className="flex flex-col gap-1 sm:flex-row sm:items-center sm:gap-3">
-                      <span className="font-medium">{pages[currentComparison].name}</span>
-                      <span className="text-sm text-muted-foreground">{pages[currentComparison].path}</span>
-                    </div>
-                    <div className="flex gap-2">
-                      {project?.sourceUrl && (
-                        <Button variant="ghost" size="sm" asChild>
-                          <Link href={project.sourceUrl} target="_blank" rel="noopener noreferrer">
-                            <ExternalLink className="mr-2 h-4 w-4" />
-                            View Original
-                          </Link>
-                        </Button>
-                      )}
-                    <Button variant="ghost" size="sm" asChild>
-                        <Link href={pages[currentComparison].url} target="_blank" rel="noopener noreferrer">
-                        <Eye className="mr-2 h-4 w-4" />
-                          View Generated
-                      </Link>
-                    </Button>
-                    </div>
-                  </div>
-
-                  <div className="grid gap-4 md:grid-cols-2">
-                    <div className="space-y-2">
-                      <div className="flex items-center gap-2">
-                        <div className="text-sm font-medium">Original Website</div>
-                        <Badge variant="outline" className="text-xs">Before</Badge>
-                      </div>
-                      <div className="relative aspect-video overflow-hidden rounded-lg border bg-background shadow-sm">
-                        {pages[currentComparison].url ? (
-                      <iframe
-                            key={`original-${pages[currentComparison].id}`}
-                            title={`Original: ${pages[currentComparison].name}`}
-                            src={pages[currentComparison].url}
-                        className="h-full w-full border-0"
-                            sandbox="allow-same-origin allow-scripts allow-forms allow-popups allow-popups-to-escape-sandbox"
-                            allow="fullscreen"
-                            loading="lazy"
-                      />
-                    ) : (
-                      <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-muted-foreground">
-                            <div className="text-4xl">{pages[currentComparison].previewIcon}</div>
-                            <div className="text-lg font-semibold">Original preview not available</div>
-                            {pages[currentComparison].metaDescription && (
-                              <p className="text-sm max-w-md">{pages[currentComparison].metaDescription}</p>
-                            )}
-                          </div>
-                        )}
-                      </div>
-                      {pages[currentComparison].title && (
-                        <p className="text-xs text-muted-foreground">
-                          <strong>Title:</strong> {pages[currentComparison].title}
-                        </p>
-                      )}
-                    </div>
-
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between gap-2">
-                        <div className="flex items-center gap-2">
-                          <div className="text-sm font-medium">Generated Next.js</div>
-                          <Badge variant="default" className="text-xs">After</Badge>
-                        </div>
-                        {previewUrl ? (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleStopPreview}
-                            disabled={isStoppingPreview}
-                          >
-                            {isStoppingPreview ? (
-                              <>
-                                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                Stopping...
-                              </>
-                            ) : (
-                              "Stop Preview"
-                            )}
-                          </Button>
-                        ) : (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={handleStartPreview}
-                            disabled={isStartingPreview || !downloadInfo}
-                          >
-                            {isStartingPreview ? (
-                              <>
-                                <Loader2 className="mr-2 h-3 w-3 animate-spin" />
-                                Starting...
-                              </>
-                            ) : (
-                              <>
-                                <Zap className="mr-2 h-3 w-3" />
-                                Start Preview
-                              </>
-                            )}
-                          </Button>
-                        )}
-                      </div>
-                      <div className="relative aspect-video overflow-hidden rounded-lg border border-primary/50 bg-primary/5 shadow-sm">
-                        {previewUrl ? (
-                          <iframe
-                            key={`preview-${previewUrl}`}
-                            title={`Generated Preview: ${pages[currentComparison].name}`}
-                            src={previewUrl}
-                            className="h-full w-full border-0"
-                            sandbox="allow-same-origin allow-scripts allow-forms allow-popups"
-                            allow="fullscreen"
-                            loading="lazy"
-                          />
-                        ) : pages[currentComparison].htmlSnapshot ? (
-                          <iframe
-                            key={`generated-${pages[currentComparison].id}`}
-                            title={`Generated: ${pages[currentComparison].name}`}
-                            srcDoc={pages[currentComparison].htmlSnapshot || undefined}
-                            sandbox="allow-same-origin allow-scripts"
-                            className="h-full w-full border-0"
-                          />
-                        ) : (
-                          <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center text-primary">
-                            <div className="text-4xl">{pages[currentComparison].previewIcon}</div>
-                            <div className="text-lg font-semibold">Generated preview</div>
-                            <p className="text-sm max-w-md">
-                              Click "Start Preview" to run the generated Next.js project with pnpm dev
-                            </p>
-                            {pages[currentComparison].metaDescription && (
-                              <p className="text-xs text-muted-foreground max-w-md">
-                                {pages[currentComparison].metaDescription}
-                              </p>
-                        )}
-                      </div>
-                    )}
-                      </div>
-                      <p className="text-xs text-muted-foreground">
-                        <strong>Status:</strong> {previewUrl ? "Preview running" : "Ready for deployment"}
-                      </p>
-                    </div>
-                  </div>
-
-                  {pages.length > 1 && (
-                    <div className="mt-6">
-                      <div className="mb-2 text-sm font-medium text-muted-foreground">All Pages</div>
-                      <div className="grid gap-2 sm:grid-cols-4 md:grid-cols-6 lg:grid-cols-8">
-                    {pages.map((page, index) => (
-                      <button
-                        key={page.id}
-                            onClick={() => setCurrentComparison(index)}
-                            className={`rounded-lg border p-2 text-left transition-all ${
-                              index === currentComparison
-                                ? "border-primary bg-primary/10 shadow-sm"
-                            : "border-muted/60 hover:border-primary/40"
-                        }`}
-                      >
-                            <div className="mb-1 text-xl">{page.previewIcon}</div>
-                        <div className="truncate text-xs font-medium">{page.name}</div>
-                            <div className="truncate text-[10px] text-muted-foreground">{page.path}</div>
-                      </button>
-                    ))}
-                  </div>
-                    </div>
-                  )}
-                </>
-              ) : (
-                <div className="flex items-center justify-center py-16 text-muted-foreground">
-                  No pages were generated for this project yet.
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </div>
 
         <div className="mx-auto max-w-5xl">
           <Card className="border-primary/20 bg-gradient-to-br from-primary/5 to-primary/10">

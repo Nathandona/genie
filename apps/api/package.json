@@ -19,6 +19,7 @@
     "@fastify/helmet": "^11.1.1",
     "@fastify/jwt": "^7.2.4",
     "@fastify/rate-limit": "^9.0.1",
+    "@genie/ai-services": "workspace:^0.1.0",
     "@genie/analyzer": "workspace:^0.1.0",
     "@genie/crawler": "workspace:^0.1.0",
     "@genie/generator": "workspace:^0.1.0",

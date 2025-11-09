@@ -151,9 +151,9 @@ describe('@genie/generator', () => {
     });
 
     it('should generate package.json', async () => {
-      await generateNextJSProject(getBaseConfig());
+      const result = await generateNextJSProject(getBaseConfig());
 
-      const packageJsonPath = join(testOutputDir, 'package.json');
+      const packageJsonPath = join(testOutputDir, result.projectDir, 'package.json');
       expect(await fs.pathExists(packageJsonPath)).toBe(true);
 
       const packageJson = await fs.readJSON(packageJsonPath);
@@ -164,9 +164,9 @@ describe('@genie/generator', () => {
     });
 
     it('should generate tsconfig.json', async () => {
-      await generateNextJSProject(getBaseConfig());
+      const result = await generateNextJSProject(getBaseConfig());
 
-      const tsconfigPath = join(testOutputDir, 'tsconfig.json');
+      const tsconfigPath = join(testOutputDir, result.projectDir, 'tsconfig.json');
       expect(await fs.pathExists(tsconfigPath)).toBe(true);
 
       const tsconfig = await fs.readJSON(tsconfigPath);
@@ -176,9 +176,9 @@ describe('@genie/generator', () => {
     });
 
     it('should generate next.config.ts', async () => {
-      await generateNextJSProject(getBaseConfig());
+      const result = await generateNextJSProject(getBaseConfig());
 
-      const nextConfigPath = join(testOutputDir, 'next.config.ts');
+      const nextConfigPath = join(testOutputDir, result.projectDir, 'next.config.ts');
       expect(await fs.pathExists(nextConfigPath)).toBe(true);
 
       const content = await fs.readFile(nextConfigPath, 'utf8');
@@ -187,9 +187,9 @@ describe('@genie/generator', () => {
     });
 
     it('should generate tailwind.config.ts with design tokens', async () => {
-      await generateNextJSProject(getBaseConfig());
+      const result = await generateNextJSProject(getBaseConfig());
 
-      const tailwindConfigPath = join(testOutputDir, 'tailwind.config.ts');
+      const tailwindConfigPath = join(testOutputDir, result.projectDir, 'tailwind.config.ts');
       expect(await fs.pathExists(tailwindConfigPath)).toBe(true);
 
       const content = await fs.readFile(tailwindConfigPath, 'utf8');
@@ -199,9 +199,9 @@ describe('@genie/generator', () => {
     });
 
     it('should generate globals.css', async () => {
-      await generateNextJSProject(getBaseConfig());
+      const result = await generateNextJSProject(getBaseConfig());
 
-      const globalsCssPath = join(testOutputDir, 'app/globals.css');
+      const globalsCssPath = join(testOutputDir, result.projectDir, 'app/globals.css');
       expect(await fs.pathExists(globalsCssPath)).toBe(true);
 
       const content = await fs.readFile(globalsCssPath, 'utf8');
@@ -210,9 +210,9 @@ describe('@genie/generator', () => {
     });
 
     it('should generate layout.tsx', async () => {
-      await generateNextJSProject(getBaseConfig());
+      const result = await generateNextJSProject(getBaseConfig());
 
-      const layoutPath = join(testOutputDir, 'app/layout.tsx');
+      const layoutPath = join(testOutputDir, result.projectDir, 'app/layout.tsx');
       expect(await fs.pathExists(layoutPath)).toBe(true);
 
       const content = await fs.readFile(layoutPath, 'utf8');
@@ -222,10 +222,10 @@ describe('@genie/generator', () => {
     });
 
     it('should generate page components', async () => {
-      await generateNextJSProject(getBaseConfig());
+      const result = await generateNextJSProject(getBaseConfig());
 
-      const homePagePath = join(testOutputDir, 'app/page.tsx');
-      const aboutPagePath = join(testOutputDir, 'app/about/page.tsx');
+      const homePagePath = join(testOutputDir, result.projectDir, 'app/page.tsx');
+      const aboutPagePath = join(testOutputDir, result.projectDir, 'app/about/page.tsx');
 
       expect(await fs.pathExists(homePagePath)).toBe(true);
       expect(await fs.pathExists(aboutPagePath)).toBe(true);
@@ -238,9 +238,9 @@ describe('@genie/generator', () => {
     });
 
     it('should generate lib/utils.ts', async () => {
-      await generateNextJSProject(getBaseConfig());
+      const result = await generateNextJSProject(getBaseConfig());
 
-      const utilsPath = join(testOutputDir, 'lib/utils.ts');
+      const utilsPath = join(testOutputDir, result.projectDir, 'lib/utils.ts');
       expect(await fs.pathExists(utilsPath)).toBe(true);
 
       const content = await fs.readFile(utilsPath, 'utf8');
@@ -250,9 +250,9 @@ describe('@genie/generator', () => {
     });
 
     it('should generate README.md', async () => {
-      await generateNextJSProject(getBaseConfig());
+      const result = await generateNextJSProject(getBaseConfig());
 
-      const readmePath = join(testOutputDir, 'README.md');
+      const readmePath = join(testOutputDir, result.projectDir, 'README.md');
       expect(await fs.pathExists(readmePath)).toBe(true);
 
       const content = await fs.readFile(readmePath, 'utf8');
@@ -262,9 +262,9 @@ describe('@genie/generator', () => {
     });
 
     it('should generate .gitignore', async () => {
-      await generateNextJSProject(getBaseConfig());
+      const result = await generateNextJSProject(getBaseConfig());
 
-      const gitignorePath = join(testOutputDir, '.gitignore');
+      const gitignorePath = join(testOutputDir, result.projectDir, '.gitignore');
       expect(await fs.pathExists(gitignorePath)).toBe(true);
 
       const content = await fs.readFile(gitignorePath, 'utf8');
@@ -278,9 +278,9 @@ describe('@genie/generator', () => {
         projectName: 'My Test Project 123',
       };
 
-      await generateNextJSProject(config);
+      const result = await generateNextJSProject(config);
 
-      const packageJson = await fs.readJSON(join(testOutputDir, 'package.json'));
+      const packageJson = await fs.readJSON(join(testOutputDir, result.projectDir, 'package.json'));
       expect(packageJson.name).toBe('my-test-project-123');
     });
 
@@ -294,11 +294,11 @@ describe('@genie/generator', () => {
         },
       };
 
-      await generateNextJSProject(config);
+      const result = await generateNextJSProject(config);
 
       // Should still generate files with defaults
-      expect(await fs.pathExists(join(testOutputDir, 'package.json'))).toBe(true);
-      expect(await fs.pathExists(join(testOutputDir, 'tailwind.config.ts'))).toBe(true);
+      expect(await fs.pathExists(join(testOutputDir, result.projectDir, 'package.json'))).toBe(true);
+      expect(await fs.pathExists(join(testOutputDir, result.projectDir, 'tailwind.config.ts'))).toBe(true);
     });
 
     it('should return file count', async () => {

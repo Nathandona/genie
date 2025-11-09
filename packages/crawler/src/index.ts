@@ -4,7 +4,7 @@ import type { Browser, Page } from 'puppeteer-core';
 import { z } from 'zod';
 import * as cheerio from 'cheerio';
 
-import type { ProjectSettings } from '@genie/shared';
+import type { ProjectSettings, NavigationLink, PageSummary } from '@genie/shared';
 
 // Check if running on Vercel
 const isVercel = process.env.VERCEL === '1';
@@ -34,7 +34,15 @@ const crawlOptionsSchema = z.object({
 export type CrawlOptions = z.infer<typeof crawlOptionsSchema>;
 
 export interface CrawlResult {
-  pages: Array<{ url: string; html: string; title?: string; metaDescription?: string }>;
+  pages: Array<{ 
+    url: string; 
+    html: string; 
+    title?: string; 
+    metaDescription?: string;
+    navigation?: NavigationLink[];
+    summary?: PageSummary;
+  }>;
+  navigation: NavigationLink[];
   errors: string[];
 }
 
@@ -162,6 +170,72 @@ export class SiteCrawler {
     };
   }
 
+  private extractNavigation(html: string, baseUrl: string): NavigationLink[] {
+    const $ = cheerio.load(html);
+    const navLinks: NavigationLink[] = [];
+    const seenUrls = new Set<string>();
+
+    // Extract from nav elements
+    $('nav a[href], header a[href], .navbar a[href], .navigation a[href]').each((index, el) => {
+      const href = $(el).attr('href');
+      const text = $(el).text().trim();
+      
+      if (href && text && text.length > 0 && text.length < 100) {
+        try {
+          const normalized = this.normalizeUrl(href, baseUrl);
+          if (normalized && normalized.startsWith('http') && !seenUrls.has(normalized)) {
+            seenUrls.add(normalized);
+            navLinks.push({
+              url: normalized,
+              text: text,
+              order: index
+            });
+          }
+        } catch {
+          // Skip invalid URLs
+        }
+      }
+    });
+
+    return navLinks.slice(0, 20); // Limit to top 20 navigation links
+  }
+
+  private extractPageSummary(html: string, url: string): PageSummary {
+    const $ = cheerio.load(html);
+    
+    // Extract main heading (h1 or first h2)
+    const mainHeading = $('h1').first().text().trim() || 
+                       $('h2').first().text().trim() || 
+                       undefined;
+
+    // Extract content preview (first few paragraphs)
+    const paragraphs: string[] = [];
+    let paragraphCount = 0;
+    $('main p, article p, .content p, body > p').each((_, el) => {
+      if (paragraphCount >= 3) return; // Stop after 3 paragraphs
+      const text = $(el).text().trim();
+      if (text.length > 20 && text.length < 500) {
+        paragraphs.push(text);
+        paragraphCount++;
+      }
+    });
+    
+    const contentPreview = paragraphs.slice(0, 2).join(' ').substring(0, 300) || undefined;
+
+    // Calculate word count
+    const bodyText = $('body').text();
+    const wordCount = bodyText.split(/\s+/).filter(w => w.length > 0).length;
+
+    return {
+      url,
+      title: $('title').text().trim() || undefined,
+      metaDescription: $('meta[name="description"]').attr('content') || undefined,
+      mainHeading,
+      contentPreview,
+      wordCount: wordCount > 0 ? wordCount : undefined
+    };
+  }
+
   async crawl(rawOptions: CrawlOptions): Promise<CrawlResult> {
     const options = crawlOptionsSchema.parse(rawOptions);
     await this.init();
@@ -175,6 +249,7 @@ export class SiteCrawler {
     const pages: CrawlResult['pages'] = [];
     const errors: string[] = [];
     const baseUrl = new URL(options.startUrl);
+    const globalNavigation = new Map<string, NavigationLink>();
 
     // Handle authentication if provided
     if (options.settings.authentication) {
@@ -227,12 +302,23 @@ export class SiteCrawler {
 
           const html = await page.content();
           const metadata = this.extractMetadata(html);
+          const navigation = this.extractNavigation(html, url);
+          const summary = this.extractPageSummary(html, url);
+          
+          // Collect navigation links globally
+          navigation.forEach(link => {
+            if (!globalNavigation.has(link.url)) {
+              globalNavigation.set(link.url, link);
+            }
+          });
           
           pages.push({ 
             url, 
             html,
             title: metadata.title,
-            metaDescription: metadata.metaDescription
+            metaDescription: metadata.metaDescription,
+            navigation,
+            summary
           });
 
           // Extract links for further crawling
@@ -264,6 +350,10 @@ export class SiteCrawler {
 
     await this.#queue.onIdle();
 
-    return { pages, errors };
+    return { 
+      pages, 
+      navigation: Array.from(globalNavigation.values()),
+      errors 
+    };
   }
 }

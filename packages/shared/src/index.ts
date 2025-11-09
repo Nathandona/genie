@@ -31,3 +31,33 @@ export interface CrawlProgress {
   pagesDiscovered: number;
   errors: string[];
 }
+
+export interface NavigationLink {
+  url: string;
+  text: string;
+  order?: number;
+}
+
+export interface PageSummary {
+  url: string;
+  title?: string;
+  metaDescription?: string;
+  mainHeading?: string;
+  contentPreview?: string;
+  wordCount?: number;
+}
+
+export interface ContentSlice {
+  type: 'heading' | 'paragraph' | 'list' | 'quote' | 'code' | 'image' | 'button' | 'link';
+  content: string;
+  metadata?: Record<string, unknown>;
+}
+
+export interface ThemeTokens {
+  colors: string[];
+  fonts: string[];
+  spacingScale: number[];
+  borderRadius?: number[];
+  shadows?: string[];
+  requiredComponents?: string[];
+}

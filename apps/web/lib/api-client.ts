@@ -248,22 +248,6 @@ class ApiClient {
     return response.url;
   }
 
-  // Preview
-  async startPreview(projectId: string): Promise<{ url: string; port: number }> {
-    return this.request<{ url: string; port: number }>(`/projects/${projectId}/preview/start`, {
-      method: 'POST',
-    });
-  }
-
-  async stopPreview(projectId: string): Promise<{ message: string }> {
-    return this.request<{ message: string }>(`/projects/${projectId}/preview/stop`, {
-      method: 'POST',
-    });
-  }
-
-  async getPreviewStatus(projectId: string): Promise<{ url: string; port: number; startedAt: string } | null> {
-    return this.request<{ url: string; port: number; startedAt: string } | null>(`/projects/${projectId}/preview`);
-  }
 }
 
 export const apiClient = new ApiClient(API_BASE_URL);

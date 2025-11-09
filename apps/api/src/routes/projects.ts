@@ -4,7 +4,6 @@ import { z } from 'zod/v4';
 
 import { enqueueProjectPipeline } from '../services/pipeline-queue.js';
 import { serializeProject } from '../utils/serializers.js';
-import { startPreview, stopPreview, getPreviewStatus } from '../services/preview-service.js';
 
 const createProjectSchema = z.object({
   sourceUrl: z.string().url(),
@@ -263,117 +262,8 @@ export default async function projectRoutes(app: FastifyInstance) {
     return reply.send(createReadStream(zipPath));
   });
 
-  // start preview server for a project
-  server.post('/projects/:id/preview/start', {
-    preHandler: server.authenticate,
-    schema: {
-      params: projectIdParamsSchema,
-      response: { 200: z.object({ url: z.string(), port: z.number() }) },
-      tags: ['projects']
-    }
-  }, async (request, reply) => {
-    const userId = request.user.sub;
-    const { id } = projectIdParamsSchema.parse(request.params);
-    const project = await server.db.project.findUnique({ where: { id } });
-    if (!project || project.userId !== userId) {
-      return reply.status(404).send({ message: 'Project not found' });
-    }
 
-    const generation = await server.db.generation.findFirst({ 
-      where: { projectId: id }, 
-      orderBy: { createdAt: 'desc' } 
-    });
-    if (!generation) {
-      return reply.status(404).send({ message: 'No generation available' });
-    }
 
-    // Get ZIP file path
-    const { existsSync } = await import('node:fs');
-    let zipPath: string;
-    
-    if (generation.s3ZipPath.startsWith('file://')) {
-      zipPath = generation.s3ZipPath.replace('file://', '');
-    } else if (generation.s3ZipPath.startsWith('s3://')) {
-      return reply.status(501).send({ message: 'S3 previews not yet implemented' });
-    } else {
-      const { join } = await import('node:path');
-      const { tmpdir } = await import('node:os');
-      zipPath = join(tmpdir(), `genie-${id}.zip`);
-    }
-
-    if (!existsSync(zipPath)) {
-      return reply.status(404).send({ message: 'ZIP file not found' });
-    }
-
-    try {
-      const preview = await startPreview(id, zipPath);
-      return preview;
-    } catch (error) {
-      return reply.status(500).send({ 
-        message: `Failed to start preview: ${(error as Error).message}` 
-      });
-    }
-  });
-
-  // stop preview server for a project
-  server.post('/projects/:id/preview/stop', {
-    preHandler: server.authenticate,
-    schema: {
-      params: projectIdParamsSchema,
-      response: { 200: z.object({ message: z.string() }) },
-      tags: ['projects']
-    }
-  }, async (request, reply) => {
-    const userId = request.user.sub;
-    const { id } = projectIdParamsSchema.parse(request.params);
-    const project = await server.db.project.findUnique({ where: { id } });
-    if (!project || project.userId !== userId) {
-      return reply.status(404).send({ message: 'Project not found' });
-    }
-
-    try {
-      await stopPreview(id);
-      return { message: 'Preview stopped' };
-    } catch (error) {
-      return reply.status(500).send({ 
-        message: `Failed to stop preview: ${(error as Error).message}` 
-      });
-    }
-  });
-
-  // get preview status for a project
-  server.get('/projects/:id/preview', {
-    preHandler: server.authenticate,
-    schema: {
-      params: projectIdParamsSchema,
-      response: { 
-        200: z.object({ 
-          url: z.string(), 
-          port: z.number(), 
-          startedAt: z.string() 
-        }).nullable() 
-      },
-      tags: ['projects']
-    }
-  }, async (request, reply) => {
-    const userId = request.user.sub;
-    const { id } = projectIdParamsSchema.parse(request.params);
-    const project = await server.db.project.findUnique({ where: { id } });
-    if (!project || project.userId !== userId) {
-      return reply.status(404).send({ message: 'Project not found' });
-    }
-
-    const status = getPreviewStatus(id);
-    if (!status) {
-      return null;
-    }
-
-    return {
-      url: status.url,
-      port: status.port,
-      startedAt: status.startedAt.toISOString(),
-    };
-  });
 
   // delete project
   server.delete('/projects/:id', {

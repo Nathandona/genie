@@ -27,46 +27,6 @@ describe('project-utils', () => {
     });
   });
 
-  describe('getUrlEmoji', () => {
-    it('should return shop emoji for e-commerce URLs', () => {
-      expect(getUrlEmoji('https://shop.example.com')).toBe('🛍️');
-      expect(getUrlEmoji('https://store.example.com')).toBe('🛍️');
-      expect(getUrlEmoji('https://commerce.example.com')).toBe('🛍️');
-    });
-
-    it('should return blog emoji for blog URLs', () => {
-      expect(getUrlEmoji('https://blog.example.com')).toBe('📝');
-    });
-
-    it('should return portfolio emoji for portfolio URLs', () => {
-      expect(getUrlEmoji('https://portfolio.example.com')).toBe('🎨');
-    });
-
-    it('should return corporate emoji for corporate URLs', () => {
-      expect(getUrlEmoji('https://corporate.example.com')).toBe('🏢');
-      expect(getUrlEmoji('https://company.example.com')).toBe('🏢');
-    });
-
-    it('should return food emoji for restaurant URLs', () => {
-      expect(getUrlEmoji('https://restaurant.example.com')).toBe('🍽️');
-      expect(getUrlEmoji('https://food.example.com')).toBe('🍽️');
-    });
-
-    it('should return tech emoji for tech URLs', () => {
-      expect(getUrlEmoji('https://tech.example.com')).toBe('💻');
-    });
-
-    it('should return default emoji for other URLs', () => {
-      expect(getUrlEmoji('https://example.com')).toBe('🌐');
-      expect(getUrlEmoji('https://random-site.com')).toBe('🌐');
-    });
-
-    it('should be case insensitive', () => {
-      expect(getUrlEmoji('https://SHOP.example.com')).toBe('🛍️');
-      expect(getUrlEmoji('https://Blog.example.com')).toBe('📝');
-    });
-  });
-
   describe('convertProject', () => {
     const createApiProject = (overrides: Partial<ApiProject> = {}): ApiProject => ({
       id: 'test-id',

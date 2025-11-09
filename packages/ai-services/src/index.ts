@@ -1,6 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
 import OpenAI from 'openai';
+import { GoogleGenerativeAI } from '@google/generative-ai';
 import { z } from 'zod';
+import type { ContentSlice, ThemeTokens, PageSummary } from '@genie/shared';
 
 const openAiConfigSchema = z.object({
   apiKey: z.string().min(1),
@@ -11,8 +13,13 @@ const anthropicConfigSchema = z.object({
   apiKey: z.string().min(1)
 });
 
+const geminiConfigSchema = z.object({
+  apiKey: z.string().min(1)
+});
+
 export type OpenAIConfig = z.infer<typeof openAiConfigSchema>;
 export type AnthropicConfig = z.infer<typeof anthropicConfigSchema>;
+export type GeminiConfig = z.infer<typeof geminiConfigSchema>;
 
 export const createOpenAIClient = (config: OpenAIConfig) => {
   const parsed = openAiConfigSchema.parse(config);
@@ -23,6 +30,128 @@ export const createAnthropicClient = (config: AnthropicConfig) => {
   const parsed = anthropicConfigSchema.parse(config);
   return new Anthropic({ apiKey: parsed.apiKey });
 };
+
+export interface GeminiClient {
+  generateContent(request: ContentGenerationRequest): Promise<ContentGenerationResponse>;
+}
+
+export interface ContentGenerationRequest {
+  pageSummary: PageSummary;
+  contentSlices: ContentSlice[];
+  themeTokens: ThemeTokens;
+  templateStructure: string; // The shadcn template structure
+  navigation?: Array<{ url: string; text: string }>;
+}
+
+export interface ContentGenerationResponse {
+  generatedContent: string; // JSX/TSX content for the page
+  metadata?: Record<string, unknown>;
+}
+
+export const createGeminiClient = (config: GeminiConfig): GeminiClient => {
+  const parsed = geminiConfigSchema.parse(config);
+  const genAI = new GoogleGenerativeAI(parsed.apiKey);
+  const model = genAI.getGenerativeModel({ 
+    model: 'gemini-2.0-flash-exp',
+    systemInstruction: `You are a React/Next.js developer expert. Generate production-ready JSX/TSX code for Next.js 16 App Router using shadcn/ui components.
+Your output should be valid TypeScript React code that can be directly used in a Next.js page component.
+Use Tailwind CSS classes for styling. Follow the provided template structure and incorporate the theme tokens.
+
+IMPORTANT: Never use toast notifications or alert components. Focus on displaying content using cards, buttons, and other UI components for a clean, static design.
+
+Return ONLY the JSX/TSX code without markdown code blocks or explanations.`
+  });
+
+  return {
+    async generateContent(request: ContentGenerationRequest): Promise<ContentGenerationResponse> {
+      const prompt = buildContentGenerationPrompt(request);
+
+      try {
+        const result = await model.generateContent(prompt);
+        const response = result.response;
+        const generatedContent = response.text() || '';
+
+        if (!generatedContent) {
+          throw new Error('No content generated from Gemini');
+        }
+
+        // Clean up markdown code blocks if present
+        const cleanedContent = generatedContent
+          .replace(/^```(?:tsx?|jsx?)?\n/gm, '')
+          .replace(/```$/gm, '')
+          .trim();
+
+        return {
+          generatedContent: cleanedContent,
+          metadata: {
+            model: 'gemini-2.0-flash-exp',
+            tokensUsed: response.usageMetadata?.totalTokenCount
+          }
+        };
+      } catch (error) {
+        console.error('Gemini content generation error:', error);
+        throw error;
+      }
+    }
+  };
+};
+
+function buildContentGenerationPrompt(request: ContentGenerationRequest): string {
+  const { pageSummary, contentSlices, themeTokens, templateStructure, navigation } = request;
+
+  const contentContext = contentSlices
+    .slice(0, 20) // Limit to top 20 slices
+    .map(slice => {
+      switch (slice.type) {
+        case 'heading':
+          return `Heading (${slice.metadata?.level || 'h1'}): ${slice.content}`;
+        case 'paragraph':
+          return `Paragraph: ${slice.content}`;
+        case 'list':
+          return `List: ${slice.content}`;
+        case 'quote':
+          return `Quote: ${slice.content}`;
+        case 'button':
+          return `Button: ${slice.content}`;
+        default:
+          return `${slice.type}: ${slice.content}`;
+      }
+    })
+    .join('\n\n');
+
+  return `Generate a Next.js 16 page component using shadcn/ui components.
+
+Page Information:
+- Title: ${pageSummary.title || 'Untitled'}
+- Main Heading: ${pageSummary.mainHeading || 'N/A'}
+- Description: ${pageSummary.metaDescription || 'N/A'}
+- Content Preview: ${pageSummary.contentPreview || 'N/A'}
+
+Theme Tokens:
+- Colors: ${themeTokens.colors.join(', ') || 'Default'}
+- Fonts: ${themeTokens.fonts.join(', ') || 'System default'}
+- Spacing Scale: ${themeTokens.spacingScale.slice(0, 10).join(', ') || 'Default'}
+- Required Components: ${themeTokens.requiredComponents?.join(', ') || 'None'}
+
+${navigation && navigation.length > 0 ? `Navigation Links:\n${navigation.map(link => `- ${link.text}: ${link.url}`).join('\n')}\n\n` : ''}
+
+Original Content Context:
+${contentContext || 'No specific content provided'}
+
+Template Structure:
+${templateStructure}
+
+Generate a complete page component that:
+1. Uses the provided shadcn/ui components from the template
+2. Incorporates the theme tokens (colors, fonts, spacing)
+3. Includes relevant content from the original page
+4. Maintains semantic HTML structure
+5. Uses Tailwind CSS classes
+6. Is production-ready and follows Next.js 16 App Router conventions
+7. NEVER uses toast notifications or alert components - focus on clean, static content display
+
+Return ONLY the JSX/TSX code without any markdown formatting or explanations.`;
+}
 
 export interface LayoutInferenceRequest {
   description: string;

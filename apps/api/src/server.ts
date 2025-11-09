@@ -11,6 +11,8 @@ import polarPlugin from './plugins/polar.js';
 import authRoutes from './routes/auth.js';
 import projectRoutes from './routes/projects.js';
 import polarRoutes from './routes/polar.js';
+// Import pipeline queue to initialize the worker
+import './services/pipeline-queue.js';
 
 export const createServer = async () => {
   const app = Fastify({
